@@ -60,6 +60,10 @@ eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
     <td>HTTP Post</td>
   </tr>
   <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
     <td>Content</td>
     <td>{"uuid": "employee", "suid": "member", "values": [{"ukey": "unique_id", "key1": "value1", "key2": 001, "key3": true}] }</td>
   </tr>
