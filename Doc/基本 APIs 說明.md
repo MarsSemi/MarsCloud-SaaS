@@ -1,5 +1,11 @@
  
-## 01. Restful APIs 使用 : 快速登入
+## 快速 Restful APIs 使用
+
+本章節提供開發人員快速銜接系統的相關 API，讓整合的時縮短。  
+如需進一步的詳細 API，請移至本文的最後，並點開相關鏈結，  
+來獲得更詳細的資訊。
+  
+### 01. 快速登入
   
 <table>
   <tr>
@@ -20,7 +26,11 @@
   </tr>
 </table>
   
-使用 POST 功能，並傳送下列內容。呼叫成功後，會返回一串 token 字串，  
+使用 POST 功能，並傳送正確的內容。呼叫成功後，會返回一 token 字串如下，  
+```
+eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
+```
+  
 用於後續的資料、功能的存取。該 token 字串，會在24小時之後，失去使用  
 授權。此時必須重新進行登入，獲取新的 token 來保持系統正常的運作。  
   
@@ -29,7 +39,19 @@
 其資料、設置、微服務等，是獨立運作，彼此互不干擾的。因此可實現，單一平台，
 服務多個專案的功能，讓資源得到極大化的使用。
 
+  
+### 02. 資料存取
 
+
+    
+### 03. 可用資料列表
+
+
+    
+### 04. 呼叫微服務 API
+
+
+  
 ## 全部 Restful APIs 相關資料
   
 詳細內容 : https://www.mars-cloud.com/portal/api/api_document.html    
