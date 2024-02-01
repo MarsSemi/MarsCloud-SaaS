@@ -10,7 +10,7 @@
 <table>
   <tr>
     <td>項目</td>
-    <td>內容</td>
+    <td>基本登入</td>
   </tr>
   <tr>
     <td>API</td>
@@ -27,6 +27,7 @@
 </table>
   
 使用 POST 功能，並傳送正確的內容。呼叫成功後，會返回一 token 字串如下，  
+  
 ```
 eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
 ```
@@ -42,6 +43,8 @@ eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
   
 ### 02. 資料存取
 
+#### 寫入一筆資料
+  
 本雲端系統的資料儲存，是以 UUID 與 SUID 兩個參數來組成該資料的 Table，  
 通常 UUID 會使用資料的類別來命名，而 SUID 則是該類別底下的子項目。  
 以下是存入一筆資料的基礎範例：
@@ -49,7 +52,7 @@ eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
 <table>
   <tr>
     <td>項目</td>
-    <td>內容</td>
+    <td>資料寫入</td>
   </tr>
   <tr>
     <td>API</td>
@@ -73,6 +76,122 @@ eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
 其內容為 values 裡的一項 JSONObject 格式。而 ukey 就是該  
 筆資料的唯一識別碼，用來存取這筆資料。若是存入資料時，沒有指定  
 ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識別碼。  
+
+如果要上傳多筆資料，請不要重複呼叫這個 API 來上傳，照樣會導致  
+效率低落。而是需要在 values 這個 JSONArray 中，放入多筆資料。  
+但也不要上傳無限制的數量，一來說呼叫一次 API，上傳資料筆數建議  
+是 3000~8000 筆內比較合適，依主系統的運算能力來決定。
+
+
+#### 讀出一筆資料
+
+<table>
+  <tr>
+    <td>項目</td>
+    <td>指定資料讀出</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/api/get?data</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Post</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Content</td>
+    <td>{ "uuid": "employee", "suid": "member", "ukey": "unique_id" }</td>
+  </tr>
+</table>
+  
+指定 UUID、SUID 與 Ukey 來取得單筆的指定資料。  
+
+#### 讀出最後的數筆資料
+
+<table>
+  <tr>
+    <td>項目</td>
+    <td>最後資料讀出</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/api/lastdata?method=read</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Post</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Content</td>
+    <td>{ "uuid": "employee", "suid": "member", "count": 5 }</td>
+  </tr>
+</table>
+
+上述的例子，指定了 UUID、SUID 與 Count，來取得該資料叢集的最後5筆資料。  
+
+#### 讀出指定日期的資料
+
+<table>
+  <tr>
+    <td>項目</td>
+    <td>指定日期資料讀出</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/api/getbyday</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Post</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Content</td>
+    <td>{ "uuid": "employee", "suid": "member", "utc_time": 1896... }</td>
+  </tr>
+</table>
+
+上述的例子，指定了 UUID、SUID 與 日期，來取得該資料叢集指定日期的資料。  
+這邊需要特別注意的是，utc_time 這個參數，使用的是 UTC 時間，記得加上  
+所在地域的 TimeZone Offset, 輸入的單位為秒。  
+  
+#### 移除指定資料
+
+<table>
+  <tr>
+    <td>項目</td>
+    <td>指定資料刪除</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/api/del?data</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Post</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Content</td>
+    <td>{ "uuid": "employee", "suid": "member", "ukey": "unique_id" }</td>
+  </tr>
+</table>
+
+上述的例子，指定 UUID、SUID 與 Ukey 來刪除單筆的指定資料。  
     
 ### 03. 可用資料列表
 
