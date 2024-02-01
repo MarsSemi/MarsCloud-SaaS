@@ -29,6 +29,7 @@ public class MainServer
 		{
 			try
 			{
+				Global.OnMQTTMessage(_topic, _payload);
 			}
 			catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); }				
 		}

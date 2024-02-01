@@ -52,7 +52,6 @@ public class Global
 	{
 		try
 		{
-			
 		}
 		catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); }				
 	}	
