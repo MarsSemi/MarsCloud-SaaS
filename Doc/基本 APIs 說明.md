@@ -263,7 +263,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
   </tr>
   <tr>
     <td>Method</td>
-    <td>HTTP Pㄔㄟ</td>
+    <td>HTTP Post</td>
   </tr>
   <tr>
     <td>Headers</td>
