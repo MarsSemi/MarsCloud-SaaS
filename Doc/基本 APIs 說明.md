@@ -21,7 +21,7 @@
     <td>HTTP Post</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{"usr": "test", "pwd": "justtest", "proj": "justtest" }</td>
   </tr>
 </table>
@@ -33,7 +33,11 @@ eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
 ```
   
 用於後續的資料、功能的存取。該 token 字串，會在24小時之後，失去使用  
-授權。此時必須重新進行登入，獲取新的 token 來保持系統正常的運作。  
+授權。此時必須重新進行登入，獲取新的 token 來保持系統正常的運作。下  
+圖為呼叫本系統之 HTTP Request 時，token 的使用方式，如果沒有使用  
+token 來呼叫指令，絕大多數的 API 都會無效，回傳 404 或是 401 錯誤 :    
+
+![認證使用](https://test.mars-cloud.com/images/1706754765790.jpg)
   
 其中，帳號與密碼為基本需求資料。而 proj 參數，則是必須要指定的專案名稱。  
 本雲端系統，允許客戶在同一雲端服務下，建置不同的專案運作。而不同的專案，  
@@ -67,7 +71,7 @@ eyJjb20iOiJtYXJzLXNlbWkuY29tIiwiYWxnIjoiZGlyIiwiZW5jIjoiQTEyOEdDTSJ9.XX ...
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{"uuid": "employee", "suid": "member", "values": [{"ukey": "unique_id", "key1": "value1", "key2": 001, "key3": true}] }</td>
   </tr>
 </table>
@@ -103,7 +107,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{ "uuid": "employee", "suid": "member", "ukey": "unique_id" }</td>
   </tr>
 </table>
@@ -130,7 +134,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{ "uuid": "employee", "suid": "member", "count": 5 }</td>
   </tr>
 </table>
@@ -157,7 +161,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{ "uuid": "employee", "suid": "member", "utc_time": 1896... }</td>
   </tr>
 </table>
@@ -186,7 +190,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{ "uuid": "employee", "suid": "member", "ukey": "unique_id" }</td>
   </tr>
 </table>
@@ -219,14 +223,14 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{ "uuid": "employee", "suid": "member" }</td>
   </tr>
 </table>
   
 因此使用上述的指令，就可以獲得如下範例的列表。
 
-```
+```json
 {
         "uuid": "Sensor",
         "suid": "B827EBD211B9",
@@ -270,7 +274,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>Authentication : Bearer [login token]</td>
   </tr>
   <tr>
-    <td>Content</td>
+    <td>Body</td>
     <td>{ "uuid": "employee", "suid": "member", ... }</td>
   </tr>
 </table>
