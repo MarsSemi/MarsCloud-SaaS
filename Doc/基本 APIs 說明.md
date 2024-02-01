@@ -193,13 +193,18 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
 
 上述的例子，指定 UUID、SUID 與 Ukey 來刪除單筆的指定資料。  
     
-### 03. 可用資料列表
-
+### 03. 取得資料叢集描述與更新
+  
+在第二章節，我們敘述了資料存取的方式，並指定了 UUID 與 SUID 來  
+獲取指定叢集的內容。但在某些情況下，我們必須判斷資料叢集是否存在。  
+或是取得該叢集的一些額外設定值。
+  
+#### 取得資料叢集描述
 
 <table>
   <tr>
     <td>項目</td>
-    <td>取得資料叢集列表</td>
+    <td>取得資料叢集描述</td>
   </tr>
   <tr>
     <td>API</td>
@@ -207,7 +212,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
   </tr>
   <tr>
     <td>Method</td>
-    <td>HTTP Pㄔㄟ</td>
+    <td>HTTP Post</td>
   </tr>
   <tr>
     <td>Headers</td>
@@ -218,9 +223,7 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     <td>{ "uuid": "employee", "suid": "member" }</td>
   </tr>
 </table>
-
-在第二章節，我們敘述了資料存取的方式，並指定了 UUID 與 SUID 來  
-獲取指定叢集的內容。但在某些情況下，我們必須判斷資料叢集是否存在。  
+  
 因此使用上述的指令，就可以獲得如下範例的列表。
 
 ```
@@ -246,6 +249,34 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
         "desc": ""
 }
 ```
+
+#### 更新資料叢集描述
+
+<table>
+  <tr>
+    <td>項目</td>
+    <td>更新資料叢集描述</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/api/usrinfo?method=updatedatasrc</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Pㄔㄟ</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Content</td>
+    <td>{ "uuid": "employee", "suid": "member", ... }</td>
+  </tr>
+</table>
+
+使用上述的指令，就可以更新描述內容。也可以任意添加各種參數，以  
+符合該專案的系統需求。  
     
 ### 04. 呼叫微服務 API
 
