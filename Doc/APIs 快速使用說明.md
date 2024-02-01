@@ -284,6 +284,47 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
     
 ### 04. 呼叫微服務 API
 
+經由為[服務範例程式](https://github.com/MarsSemi/MarsCloud-SaaS/tree/main/Services)成功上線後，  
+我們可以透過服務呼叫的方式，來達成 API 功能的串接。本系統已整合  
+完成混合雲的運作模式，所以不管微服務如何部署，都可以透過雲端系統  
+來呼叫執行。
+
+#### 呼叫微服務範例
+
+<table>
+  <tr>
+    <td>項目</td>
+    <td>更新資料叢集描述</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/services/service.YourServiceName/YourServiceAPI</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Get/Post</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Body</td>
+    <td>自行定義之內容</td>
+  </tr>
+</table>
+
+這邊需要注意的是，YourServiceName 與 YourServiceAPI 這兩個參數。  
+皆需詢問為服務的撰寫人員，他在後台的註冊類型、與支持的 API 有哪些。假  
+設該微服務註冊類型為 "mytest"，API 呼叫方式是 "/api/hello"，則整  
+個呼叫連結則會變成 :
+
+```text
+https://test.mars-cloud.com/services/service.mytest/api/hello
+```
+
+其餘服務或是 API 則依此類推，即可完成各類功能之串接。
+
 
   
 ## 全部 Restful APIs 相關資料
