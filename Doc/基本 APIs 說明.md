@@ -1,8 +1,8 @@
  
 ## 快速 Restful APIs 使用
 
-本章節提供開發人員快速銜接系統的相關 API，讓整合的時縮短。  
-如需進一步的詳細資訊，請移至本文的最後，並點開相關鏈結，  
+本章節提供開發人員快速銜接系統的相關 API，讓整合的時間縮  
+短。如需進一步的詳細資訊，請移至本文的最後，並點開相關鏈結，  
 來獲得更詳細的使用說明。
   
 ### 01. 快速登入
@@ -196,6 +196,56 @@ ukey，則系統會依據時間自行給個流水號碼作為該筆資料的識�
 ### 03. 可用資料列表
 
 
+<table>
+  <tr>
+    <td>項目</td>
+    <td>取得資料叢集列表</td>
+  </tr>
+  <tr>
+    <td>API</td>
+    <td>https://test.mars-cloud.com/api/usrinfo?method=datasrcinfo</td>
+  </tr>
+  <tr>
+    <td>Method</td>
+    <td>HTTP Pㄔㄟ</td>
+  </tr>
+  <tr>
+    <td>Headers</td>
+    <td>Authentication : Bearer [login token]</td>
+  </tr>
+  <tr>
+    <td>Content</td>
+    <td>{ "uuid": "employee", "suid": "member" }</td>
+  </tr>
+</table>
+
+在第二章節，我們敘述了資料存取的方式，並指定了 UUID 與 SUID 來  
+獲取指定叢集的內容。但在某些情況下，我們必須判斷資料叢集是否存在。  
+因此使用上述的指令，就可以獲得如下範例的列表。
+
+```
+{
+        "uuid": "Sensor",
+        "suid": "B827EBD211B9",
+        "name": "Sensor",
+        "ttl": 5184000,
+        "data_profile": "both.Sensor",
+        "vender_id": "virtual.com",
+        "owner": "",
+        "record_count": 3182,
+        "share_key": "",
+        "record_size": 428615,
+        "share_loca": "",
+        "type": "",
+        "product_id": "",
+        "forceAlarm": "0",
+        "ukey": "Sensor_B827EBD211B9",
+        "ext3": "",
+        "ext2": "",
+        "ext1": "",
+        "desc": ""
+}
+```
     
 ### 04. 呼叫微服務 API
 
