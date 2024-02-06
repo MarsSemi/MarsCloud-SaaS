@@ -20,4 +20,4 @@ Mars Semiconductor corp. 是一家全方案的 IC 設計商。
 ## 聯絡方式
 
 - [EMail] service@mars-semi.com.tw
-- [TEL] 03-5775799
+- [TEL] (+886) 03-5775799
