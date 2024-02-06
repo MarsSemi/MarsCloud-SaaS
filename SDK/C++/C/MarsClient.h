@@ -1,14 +1,10 @@
-// MarsCloudAPI.cpp : 定義主控台應用程式的進入點。
-//
 //--------------------------------------------------------------
-#include "stdafx.h"
+//
 //--------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <conio.h>
 #include <string.h>
-//--------------------------------------------------------------
-#include "net.h"
 //--------------------------------------------------------------
 struct _User
 {
@@ -34,7 +30,7 @@ void* CreateUser(char *_account, char *_password, char *_proj)
 		memset(_user, 0, sizeof(_User));
 		strcpy(_user->_Account, _account);
 		strcpy(_user->_Password, _password);
-    strcpy(_user->_Proj, _proj);
+		strcpy(_user->_Proj, _proj);
 
 		return _user;
 	}
