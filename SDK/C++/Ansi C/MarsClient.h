@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <conio.h>
 #include <string.h>
+#include <net.h>
 //--------------------------------------------------------------
 struct _User
 {
