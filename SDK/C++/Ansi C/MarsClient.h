@@ -1,11 +1,14 @@
+#ifndef __MARSCLIENT__
+#define __MARSCLIENT__
 //--------------------------------------------------------------
 //
 //--------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
-#include <conio.h>
 #include <string.h>
-#include <net.h>
+#include <curl/curl.h>
+//--------------------------------------------------------------
+//
 //--------------------------------------------------------------
 struct _User
 {
@@ -13,11 +16,83 @@ struct _User
 	char _Password[16];
 	char _Proj[256];
 	char _Token[512];
-
-	SOCKET _SubscribeSocket = NULL;
+	char _Host[128];
 };
 //--------------------------------------------------------------
-void* CreateUser(char *_account, char *_password, char *_proj)
+//
+//--------------------------------------------------------------
+bool InitNetwork(void)
+{
+	try
+	{
+		curl_global_init(CURL_GLOBAL_ALL);
+		return true;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+size_t HttpWriteBack(void *_content, size_t _size, size_t _block, void *_dataPtr)
+{
+	try
+	{
+		size_t _realSize = _size*_block;
+		memcpy(_dataPtr, _content, _realSize);
+		return _realSize;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return 0;
+}
+//--------------------------------------------------------------
+bool HttpGET(char *_respone, const char *_request, const char *_token)
+{
+	try
+	{
+		CURL *_curl = curl_easy_init();
+
+		curl_easy_setopt(_curl, CURLOPT_URL, _request);
+		curl_easy_setopt(_curl, CURLOPT_WRITEDATA, _respone);
+		curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, HttpWriteBack);
+
+		if(curl_easy_perform(_curl) == CURLE_OK)
+		{
+			curl_easy_cleanup(_curl);
+			return true;
+		}
+
+		curl_easy_cleanup(_curl);
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool HttpGetData(char *_result, void *_handle, const char *_request)
+{
+	try
+	{
+		if (_result == NULL || _request == NULL) return false;
+		if (_handle == NULL || _request == NULL) return false;
+		
+		bool _status = false;
+		char *_respone = (char *)malloc(512 * 1024);
+		_User *_user = (_User *)_handle;
+
+		char _req[1024] = { '\0' };
+		sprintf(_req, "%s%s", _user->_Host, _request);
+
+		if (HttpGET(_respone, _req, _user->_Token))
+			_status = true;
+				
+		free(_respone);
+		return _status;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+//
+//--------------------------------------------------------------
+void* CreateUser(const char *_account, const char *_password, const char *_proj)
 {
 	try
 	{
@@ -29,15 +104,15 @@ void* CreateUser(char *_account, char *_password, char *_proj)
 		_User *_user = (_User *)malloc(sizeof(_User));
 
 		memset(_user, 0, sizeof(_User));
+
 		strcpy(_user->_Account, _account);
 		strcpy(_user->_Password, _password);
 		strcpy(_user->_Proj, _proj);
 
 		return _user;
 	}
-	catch (...) { printf("\nfunc : CreateUser exception"); }
-
-	return NULL;
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return NULL;	
 }
 //--------------------------------------------------------------
 void CloseUser(void *_handle)
@@ -47,102 +122,50 @@ void CloseUser(void *_handle)
 		_User *_user = (_User *)_handle;
 		if (_user != NULL)
 		{
-			CloseSocket(_user->_SubscribeSocket);
 			memset(_user, 0, sizeof(_User));
 			free(_user);
 		}
 	}
-	catch (...) { printf("\nfunc : CloseUser exception"); }
+	catch(...){ printf("Func Exception : %s\n", __func__); }	
 }
 //--------------------------------------------------------------
-bool ParseHttpResult(char *_result, char *_respone)
+bool DoLogin(void *_handle, const char *_host)
 {
 	try
 	{
-		if (_result == NULL)
-			return false;
-		
-		if (_respone != NULL && strstr(_respone, "200 OK") != NULL)
-		{
-			const char *_seperator = "\r\n\r\n";
-			const int _seperator_len = strlen(_seperator);
-			char *_pch = strstr(_respone, _seperator);
-
-			if (_pch != NULL)
-			{
-				int _pch_len = strlen(_pch);
-				memcpy(_result, _pch + _seperator_len, strlen(_pch) - _seperator_len);
-				return true;
-			}
-		}
-	}
-	catch (...) { printf("\nfunc : GetHttpResult exception"); }
-	return false;
-}
-//--------------------------------------------------------------
-bool HttpGetData(char *_result, void *_handle, char *_host, int _port, char *_request)
-{
-	try
-	{
-		if (_result == NULL || _request == NULL)
-			return false;
-
+		if (_handle == NULL || _host == NULL)
+		return false;
+	
 		_User *_user = (_User *)_handle;
-		if (_user == NULL || _host == NULL || strlen(_user->_Token) <= 0)
-			return false;
-
-		bool _status = false;
-		char *_respone = (char *)malloc(512 * 1024);
-
-		if (HttpGET(_respone, _host, _port, _request, _user->_Token) > 0)
-			if (ParseHttpResult(_result, _respone))
-			{
-				printf("\n\nGetUserDataSrcList : %s", _result);
-				_status = true;
-			}
-
-		free(_respone);
-		return _status;
-	}
-	catch (...) { printf("\nfunc : GetHttpResult exception"); }
-	return false;
-}
-//--------------------------------------------------------------
-bool DoLogin(void *_handle, char *_host, int _port)
-{
-	try
-	{
-		_User *_user = (_User *)_handle;
-		if (_user == NULL || _host == NULL)
-			return false;
-		
 		char _req[1024];
-		sprintf(_req, "/auth/login?usr=%s&pwd=%s&proj=%s", _user->_Account, _user->_Password, _user->_Proj);
+		sprintf(_req, "%s/auth/login?usr=%s&pwd=%s&proj=%s", _host, _user->_Account, _user->_Password, _user->_Proj);
 
 		bool _status = false;
 		char *_respone = (char *)malloc(512 * 1024);
 
-		if(HttpGET(_respone, _host, _port, _req, NULL) > 0)
-			if (ParseHttpResult(_user->_Token, _respone))
-			{
-				printf("\n\nLogin Token : %s", _user->_Token);
-				_status = true;
-			}
+		strcpy(_user->_Host, _host);
 
+		if(HttpGET(_respone, _req, NULL))
+		{
+			memcpy(_user->_Token, _respone, sizeof(_user->_Token));
+			_status = true;
+		}
+		
 		free(_respone);
 		return _status;
 	}
-	catch (...) { printf("\nfunc : DoLogin exception"); }
+	catch(...){ printf("Func Exception : %s\n", __func__); }	
 	return false;
 }
 //--------------------------------------------------------------
-bool GetUserDataSrcList(char *_result, void *_handle, char *_host, int _port)
+bool GetUserDataSrcList(void *_handle, char *_result)
 {
 	try
 	{
-		return HttpGetData(_result, _handle, _host, _port, "/api/usrinfo?method=datasrclist");
+		return HttpGetData(_result, _handle, "/api/usrinfo?method=datasrclist");
 	}
-	catch (...) { printf("\nfunc : GetUserDataSrcList exception"); }
+	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
 }
 //--------------------------------------------------------------
+#endif
