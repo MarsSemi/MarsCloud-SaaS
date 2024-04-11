@@ -91,7 +91,7 @@ public:
 	bool DoLogin(const char *_host);
 	bool RegistryDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type);
 
-	bool GetDataSrcList(char *_result);
+	bool PutData(const char *_uuid, const char *_suid, const char *_content);
 	bool GetLastData(const char *_uuid, const char *_suid, int _count, char *_result);
 };
 //--------------------------------------------------------------
@@ -203,7 +203,7 @@ bool MarsClient::HttpGetData(char *_respone, const char *_request)
 		if (_respone == NULL || _request == NULL) return false;
 		
 		bool _status = false;
-		char _req[1024] = { EOF };
+		char _req[1024] = { '\0' };
 
 		sprintf(_req, "%s%s", _Host, _request);
 
@@ -229,7 +229,7 @@ bool MarsClient::HttpPostData(char *_respone, const char *_request, const char *
 
 		if (HttpPost(_respone, _req, _payload, strlen(_payload), _Token))
 			_status = true;
-			
+
 		return _status;
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
@@ -249,7 +249,7 @@ bool MarsClient::DoLogin(const char *_host)
 		{
 			strcpy(_Host, _host);
 
-			_Token[512] = EOF;
+			_Token[512] = '\0';
 			_status = true;
 		}
 
@@ -263,22 +263,27 @@ bool MarsClient::RegistryDevice(const char *_vendor, const char *_uuid, const ch
 {      	
 	try
 	{
-		char _resp[128] = { EOF };
-		char _info[256] = { EOF };
+		char _resp[128] = { '\0' };
+		char _info[256] = { '\0' };
 
-		sprintf(_info, "{ \"vendor\":\"%s\", \"uuid\":\"%s\", \"suid\":\"%s\", \"profile\":\"%s\" }", _vendor, _uuid, _suid, _type);
+		sprintf(_info, "{ \"vendor\":\"%s\", \"uuid\":\"%s\", \"suid\":\"%s\", \"data_profile\":\"%s\" }", _vendor, _uuid, _suid, _type);
 
-		return HttpPostData(_resp, "/auth/registry?target=device", _info);    
+		return HttpPostData(_resp, "/api/usrinfo?method=adddatasrc", _info);    
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }	
 	return false;
 }
 //--------------------------------------------------------------
-bool MarsClient::GetDataSrcList(char *_result)
+bool MarsClient::PutData(const char *_uuid, const char *_suid, const char *_content)
 {
 	try
 	{
-		return HttpGetData(_result, "/api/usrinfo?method=datasrclist");
+		char _resp[128] = { '\0' };
+		char _info[256] = { '\0' };
+
+		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"values\": [%s] }", _uuid, _suid, _content);
+
+		return HttpPostData(_resp, "/api/put?data", _info);
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
@@ -288,7 +293,7 @@ bool MarsClient::GetLastData(const char *_uuid, const char *_suid, int _count, c
 {
 	try
 	{
-		char _info[256] = { EOF };
+		char _info[256] = { '\0' };
 
 		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"count\":%d }", _uuid, _suid, _count);
 
