@@ -10,13 +10,11 @@
 //--------------------------------------------------------------
 //
 //--------------------------------------------------------------
-struct _User
+struct HttpPostPayload
 {
-	char _Account[256];
-	char _Password[16];
-	char _Proj[256];
-	char _Token[512];
-	char _Host[128];
+	const char *_buf;
+	int _size;
+	int _sentSize;
 };
 //--------------------------------------------------------------
 //
@@ -32,11 +30,11 @@ bool InitNetwork(void)
 	return false;
 }
 //--------------------------------------------------------------
-size_t HttpWriteBack(void *_content, size_t _size, size_t _block, void *_dataPtr)
+size_t HttpWriteBack(void *_content, size_t _size, size_t _nmemb, void *_dataPtr)
 {
 	try
 	{
-		size_t _realSize = _size*_block;
+		size_t _realSize = _size*_nmemb;
 		memcpy(_dataPtr, _content, _realSize);
 		return _realSize;
 	}
@@ -44,125 +42,257 @@ size_t HttpWriteBack(void *_content, size_t _size, size_t _block, void *_dataPtr
 	return 0;
 }
 //--------------------------------------------------------------
-bool HttpGET(char *_respone, const char *_request, const char *_token)
+size_t HttpReadBack(void *_dest, size_t _size, size_t _nmemb, void *_dataPtr)
 {
 	try
 	{
-		CURL *_curl = curl_easy_init();
+		HttpPostPayload *_payload = (HttpPostPayload *)_dataPtr;
 
-		curl_easy_setopt(_curl, CURLOPT_URL, _request);
-		curl_easy_setopt(_curl, CURLOPT_WRITEDATA, _respone);
-		curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, HttpWriteBack);
-
-		if(curl_easy_perform(_curl) == CURLE_OK)
+		if(_payload->_size > 0)
 		{
-			curl_easy_cleanup(_curl);
-			return true;
+			size_t _destSize = _size*_nmemb;
+			size_t _size = _destSize < _payload->_size ? _destSize : _payload->_size;			
+
+			memcpy(_dest, _payload->_buf+_payload->_sentSize, _size);
+			
+			_payload->_sentSize += _size;
+			_payload->_size -= _size;
+
+			return _size;
 		}
-
-		curl_easy_cleanup(_curl);
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
-	return false;
-}
-//--------------------------------------------------------------
-bool HttpGetData(char *_result, void *_handle, const char *_request)
-{
-	try
-	{
-		if (_result == NULL || _request == NULL) return false;
-		if (_handle == NULL || _request == NULL) return false;
-		
-		bool _status = false;
-		char *_respone = (char *)malloc(512 * 1024);
-		_User *_user = (_User *)_handle;
-
-		char _req[1024] = { '\0' };
-		sprintf(_req, "%s%s", _user->_Host, _request);
-
-		if (HttpGET(_respone, _req, _user->_Token))
-			_status = true;
-				
-		free(_respone);
-		return _status;
-	}
-	catch(...){ printf("Func Exception : %s\n", __func__); }
-	return false;
+	return 0;
 }
 //--------------------------------------------------------------
 //
 //--------------------------------------------------------------
-void* CreateUser(const char *_account, const char *_password, const char *_proj)
+class MarsClient
+{
+private:
+	const static int _DefaultTimeOut = 30; //sec
+	const static int _DefaultAcceptTimeOut = 5000; //msec
+private:
+	char _Account[256];
+	char _Password[16];
+	char _Proj[256];
+	char _Token[513];
+	char _Host[128];
+private:
+	bool HttpGET(char *_respone, const char *_url, const char *_token);
+	bool HttpPost(char *_respone, const char *_url, const char *_payload, int _size, const char *_token);
+
+	bool HttpGetData(char *_result, const char *_request);
+	bool HttpPostData(char *_result, const char *_request, const char *_payload);
+public:
+	MarsClient(const char *_account, const char *_password, const char *_proj);
+	~MarsClient();
+
+	bool DoLogin(const char *_host);
+	bool RegistryDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type);
+
+	bool GetDataSrcList(char *_result);
+	bool GetLastData(const char *_uuid, const char *_suid, int _count, char *_result);
+};
+//--------------------------------------------------------------
+//
+//--------------------------------------------------------------
+MarsClient::MarsClient(const char *_account, const char *_password, const char *_proj)
 {
 	try
 	{
 		InitNetwork();
 
 		if (_account == NULL || _password == NULL)
-			return NULL;
+			return;
 
-		_User *_user = (_User *)malloc(sizeof(_User));
-
-		memset(_user, 0, sizeof(_User));
-
-		strcpy(_user->_Account, _account);
-		strcpy(_user->_Password, _password);
-		strcpy(_user->_Proj, _proj);
-
-		return _user;
+		strcpy(_Account, _account);
+		strcpy(_Password, _password);
+		strcpy(_Proj, _proj);
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
-	return NULL;	
 }
 //--------------------------------------------------------------
-void CloseUser(void *_handle)
+MarsClient::~MarsClient()
 {
 	try
 	{
-		_User *_user = (_User *)_handle;
-		if (_user != NULL)
-		{
-			memset(_user, 0, sizeof(_User));
-			free(_user);
-		}
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }	
 }
 //--------------------------------------------------------------
-bool DoLogin(void *_handle, const char *_host)
+bool MarsClient::HttpGET(char *_respone, const char *_url, const char *_token)
 {
 	try
 	{
-		if (_handle == NULL || _host == NULL)
-		return false;
-	
-		_User *_user = (_User *)_handle;
-		char _req[1024];
-		sprintf(_req, "%s/auth/login?usr=%s&pwd=%s&proj=%s", _host, _user->_Account, _user->_Password, _user->_Proj);
-
-		bool _status = false;
-		char *_respone = (char *)malloc(512 * 1024);
-
-		strcpy(_user->_Host, _host);
-
-		if(HttpGET(_respone, _req, NULL))
+		struct curl_slist* _headers = NULL;
+		CURL *_curl = curl_easy_init();
+		
+		//curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1);
+		curl_easy_setopt(_curl, CURLOPT_FAILONERROR, 1);
+		curl_easy_setopt(_curl, CURLOPT_URL, _url);
+		curl_easy_setopt(_curl, CURLOPT_TIMEOUT, _DefaultTimeOut);
+		curl_easy_setopt(_curl, CURLOPT_ACCEPTTIMEOUT_MS, _DefaultAcceptTimeOut);
+		curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, HttpWriteBack);
+		curl_easy_setopt(_curl, CURLOPT_WRITEDATA, _respone);
+		
+		if(_token != NULL) { char _buf[540]; sprintf(_buf, "Authentication: Bearer %s", _token); _headers = curl_slist_append(_headers, _buf); };
+		if(_headers != NULL) curl_easy_setopt(_curl, CURLOPT_HTTPHEADER, _headers);
+		if(curl_easy_perform(_curl) == CURLE_OK)
 		{
-			memcpy(_user->_Token, _respone, sizeof(_user->_Token));
-			_status = true;
+			curl_slist_free_all(_headers);
+			curl_easy_cleanup(_curl);
+			return true;
 		}
 		
-		free(_respone);
+		curl_slist_free_all(_headers);
+		curl_easy_cleanup(_curl);
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::HttpPost(char *_respone, const char *_url, const char *_payload, int _size, const char *_token)
+{
+	try
+	{
+		struct curl_slist* _headers = NULL;
+		struct HttpPostPayload _data;
+		CURL *_curl = curl_easy_init();		
+
+		_data._buf = _payload;
+		_data._size = _payload == NULL ? 0 : _size;
+		_data._sentSize = 0;
+
+		//curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1);
+		curl_easy_setopt(_curl, CURLOPT_POST, 1);	
+		curl_easy_setopt(_curl, CURLOPT_FAILONERROR, 1);
+		curl_easy_setopt(_curl, CURLOPT_URL, _url);
+		curl_easy_setopt(_curl, CURLOPT_TIMEOUT, _DefaultTimeOut);	
+		curl_easy_setopt(_curl, CURLOPT_ACCEPTTIMEOUT_MS, _DefaultAcceptTimeOut);
+		curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, HttpWriteBack);
+		curl_easy_setopt(_curl, CURLOPT_WRITEDATA, _respone);		
+		curl_easy_setopt(_curl, CURLOPT_READFUNCTION, HttpReadBack);
+		curl_easy_setopt(_curl, CURLOPT_READDATA, &_data);
+		
+		_headers = curl_slist_append(_headers, "Transfer-Encoding:");
+		_headers = curl_slist_append(_headers, "Expect:");
+		_headers = curl_slist_append(_headers, "Content-Type: application/json; charset=utf-8");
+
+		if(_data._size > 0) { char _buf[48]; sprintf(_buf, "Content-Length: %d", _data._size); _headers = curl_slist_append(_headers, _buf); };
+		if(_token != NULL) { char _buf[540]; sprintf(_buf, "Authentication: Bearer %s", _token); _headers = curl_slist_append(_headers, _buf); };				
+		if(_headers != NULL) curl_easy_setopt(_curl, CURLOPT_HTTPHEADER, _headers);
+		if(curl_easy_perform(_curl) == CURLE_OK)
+		{
+			curl_slist_free_all(_headers);
+			curl_easy_cleanup(_curl);
+			return true;
+		}
+
+		curl_slist_free_all(_headers);
+		curl_easy_cleanup(_curl);
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::HttpGetData(char *_respone, const char *_request)
+{
+	try
+	{
+		if (_respone == NULL || _request == NULL) return false;
+		
+		bool _status = false;
+		char _req[1024] = { EOF };
+
+		sprintf(_req, "%s%s", _Host, _request);
+
+		if (HttpGET(_respone, _req, _Token))
+			_status = true;
+				
+		return _status;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::HttpPostData(char *_respone, const char *_request, const char *_payload)
+{
+	try
+	{
+		if (_respone == NULL || _request == NULL) return false;
+		
+		bool _status = false;
+		char _req[1024] = { EOF };
+
+		sprintf(_req, "%s%s", _Host, _request);
+
+		if (HttpPost(_respone, _req, _payload, strlen(_payload), _Token))
+			_status = true;
+			
+		return _status;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::DoLogin(const char *_host)
+{
+	try
+	{	
+		char _req[1024];
+		sprintf(_req, "%s/auth/login?usr=%s&pwd=%s&proj=%s", _host, _Account, _Password, _Proj);
+
+		bool _status = false;
+
+		if(HttpGET(_Token, _req, NULL))
+		{
+			strcpy(_Host, _host);
+
+			_Token[512] = EOF;
+			_status = true;
+		}
+
 		return _status;
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }	
 	return false;
 }
 //--------------------------------------------------------------
-bool GetUserDataSrcList(void *_handle, char *_result)
+bool MarsClient::RegistryDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type)
+{      	
+	try
+	{
+		char _resp[128] = { EOF };
+		char _info[256] = { EOF };
+
+		sprintf(_info, "{ \"vendor\":\"%s\", \"uuid\":\"%s\", \"suid\":\"%s\", \"profile\":\"%s\" }", _vendor, _uuid, _suid, _type);
+
+		return HttpPostData(_resp, "/auth/registry?target=device", _info);    
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }	
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::GetDataSrcList(char *_result)
 {
 	try
 	{
-		return HttpGetData(_result, _handle, "/api/usrinfo?method=datasrclist");
+		return HttpGetData(_result, "/api/usrinfo?method=datasrclist");
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::GetLastData(const char *_uuid, const char *_suid, int _count, char *_result)
+{
+	try
+	{
+		char _info[256] = { EOF };
+
+		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"count\":%d }", _uuid, _suid, _count);
+
+		return HttpGetData(_result, "/api/lastdata?method=read");
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
