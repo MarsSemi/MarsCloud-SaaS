@@ -89,7 +89,7 @@ public:
 	~MarsClient();
 
 	bool DoLogin(const char *_host);
-	bool RegistryDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type);
+	bool RegDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type);
 
 	bool PutData(const char *_uuid, const char *_suid, const char *_content);
 	bool GetLastData(const char *_uuid, const char *_suid, int _count, char *_result);
@@ -259,7 +259,7 @@ bool MarsClient::DoLogin(const char *_host)
 	return false;
 }
 //--------------------------------------------------------------
-bool MarsClient::RegistryDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type)
+bool MarsClient::RegDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type)
 {      	
 	try
 	{
