@@ -8,12 +8,11 @@ int main(void)
 	InitNetwork();
 
 	char _resp[512];
-	void *_user = CreateUser("test", "test", "justtest");
+	MarsClient _client("test", "test", "justtest");
 
-	if(DoLogin(_user, "https://test.mars-cloud.com"))
-		printf("Login SUCCESS");
+	if(_client.DoLogin("https://test.mars-cloud.com")) printf("Login SUCCESS\n");
+	if(_client.RegistryDevice("test.com", "test", "temperature", "both.temp")) printf("Reg Device SUCCESS\n");
 
-	CloseUser(_user);
 	return 0;
 }
 //--------------------------------------------------------------
