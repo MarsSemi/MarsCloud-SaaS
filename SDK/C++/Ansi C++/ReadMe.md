@@ -49,3 +49,9 @@ gcc main.cpp -o test -lcurl -lstdc++
 與 try catch 功能。所以需要 link curl、stdc++  
 兩個 libraries。至於 pthread 等其餘函式庫，則  
 看專案需求自行加入。  
+
+## 注意事項
+
+本範例程式 Login 後返回之 token 其時效性為  
+24 Hours。需在程式中實現重新 Login 的程式，  
+這個功能並不包含在本範例程式之中。
