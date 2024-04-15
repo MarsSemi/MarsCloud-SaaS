@@ -48,7 +48,7 @@ size_t HttpReadBack(void *_dest, size_t _size, size_t _nmemb, void *_dataPtr)
 	{
 		HttpPostPayload *_payload = (HttpPostPayload *)_dataPtr;
 
-		if(_payload->_size > 0)
+		if(_payload->_buf != NULL && _payload->_size > 0)
 		{
 			size_t _destSize = _size*_nmemb;
 			size_t _size = _destSize < _payload->_size ? _destSize : _payload->_size;			
@@ -93,6 +93,8 @@ public:
 
 	bool PutData(const char *_uuid, const char *_suid, const char *_content);
 	bool GetLastData(const char *_uuid, const char *_suid, int _count, char *_result);
+
+	bool CallService(const char *_service, const char *_api, const char *_postData, char *_result);
 };
 //--------------------------------------------------------------
 //
@@ -227,7 +229,7 @@ bool MarsClient::HttpPostData(char *_respone, const char *_request, const char *
 
 		sprintf(_req, "%s%s", _Host, _request);
 
-		if (HttpPost(_respone, _req, _payload, strlen(_payload), _Token))
+		if (HttpPost(_respone, _req, _payload, _payload == NULL ? 0 : strlen(_payload), _Token))
 			_status = true;
 
 		return _status;
@@ -298,6 +300,18 @@ bool MarsClient::GetLastData(const char *_uuid, const char *_suid, int _count, c
 		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"count\":%d }", _uuid, _suid, _count);
 
 		return HttpGetData(_result, "/api/lastdata?method=read");
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::CallService(const char *_service, const char *_api, const char *_postData, char *_result)
+{
+	try
+	{
+		char _cmd[512];
+		sprintf(_cmd, "/services/%s/%s", _service, _api);
+		return HttpPostData(_result, _cmd, _postData);
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
