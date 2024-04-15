@@ -20,7 +20,7 @@
 函式包含了三個參數：帳號(user)、密碼(password)、專案(project)  
 
 ```
-_User.Login("test", "test", "justtest");
+_User.DoLogin("test", "test", "justtest");
 ```
 
 其中的專案代碼，需由系統架設人員提供，才能正確  
