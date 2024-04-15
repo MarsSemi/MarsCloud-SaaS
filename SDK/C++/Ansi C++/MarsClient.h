@@ -309,9 +309,14 @@ bool MarsClient::CallService(const char *_service, const char *_api, const char 
 {
 	try
 	{
-		char _cmd[512];
-		sprintf(_cmd, "/services/%s/%s", _service, _api);
-		return HttpPostData(_result, _cmd, _postData);
+		if(strcmp(_service, "service.databroker"))
+			return HttpPostData(_result, _api, _postData);
+		else
+		{
+			char _cmd[512];
+			sprintf(_cmd, "/services/%s/%s", _service, _api);
+			return HttpPostData(_result, _cmd, _postData);
+		}
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
