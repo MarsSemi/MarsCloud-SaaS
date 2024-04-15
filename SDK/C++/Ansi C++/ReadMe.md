@@ -8,21 +8,25 @@
     <td>編譯器</td>
     <td>版本</td>
     <td>編譯結果</td>
+    <td>運作結果</td>
   </tr>
   <tr>
     <td>gcc</td>
     <td>13 (x86、x64)</td>
-    <td>正常</td>
+    <td>OK</td>
+    <td>OK</td>
   </tr>
   <tr>
     <td>gcc</td>
     <td>13 (ARM64)</td>
-    <td>正常</td>
+    <td>OK</td>
+    <td>OK</td>
   </tr>
   <tr>
     <td>clang</td>
     <td>15 (ARM64)</td>
-    <td>正常</td>
+    <td>OK</td>
+    <td>OK</td>
   </tr>
 </table>
 
