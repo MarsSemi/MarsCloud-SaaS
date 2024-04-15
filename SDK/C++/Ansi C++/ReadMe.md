@@ -1,7 +1,30 @@
  
 ## 說明
 
-本程式採用標準 gcc 編譯，版本為 gcc 13。  
+本程式採用標準 Ansi C++ 編譯，已測試的編譯器版本為：
+
+<table>
+  <tr>
+    <td>編譯器</td>
+    <td>版本</td>
+    <td>編譯結果</td>
+  </tr>
+  <tr>
+    <td>gcc</td>
+    <td>13 (x86、x64)</td>
+    <td>正常</td>
+  </tr>
+  <tr>
+    <td>gcc</td>
+    <td>13 (ARM64)</td>
+    <td>正常</td>
+  </tr>
+  <tr>
+    <td>clang</td>
+    <td>15 (ARM64)</td>
+    <td>正常</td>
+  </tr>
+</table>
 
 ## 編譯過程
 
