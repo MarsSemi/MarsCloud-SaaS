@@ -7,24 +7,32 @@
   <tr>
     <td>編譯器</td>
     <td>版本</td>
+    <td>CPU</td>
+    <td>OS</td>
     <td>編譯結果</td>
     <td>運作結果</td>
   </tr>
   <tr>
     <td>gcc</td>
-    <td>13 (x86、x64)</td>
+    <td>13</td>
+    <td>x86、x64</td>
+    <td>Ubuntu、Red Hat</td>
     <td>OK</td>
     <td>OK</td>
   </tr>
   <tr>
     <td>gcc</td>
-    <td>13 (ARM64)</td>
+    <td>13</td>
+    <td>ARM64</td>
+    <td>Ubuntu、Mac OS</td>
     <td>OK</td>
     <td>OK</td>
   </tr>
   <tr>
     <td>clang</td>
-    <td>15 (ARM64)</td>
+    <td>15</td>
+    <td>ARM64</td>
+    <td>Mac OS</td>
     <td>OK</td>
     <td>OK</td>
   </tr>
