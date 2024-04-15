@@ -346,7 +346,7 @@ public class MarsCloudClient extends AbstractObject.ITunnel
     //---------------------------------------------------------------------------------------
     //
     //---------------------------------------------------------------------------------------
-    private static String _MarsCloudHost = "www.mars-cloud.com";
+    private static String _MarsCloudHost = "test.mars-cloud.com";
     public static String _MarsCloudURL = "https://"+_MarsCloudHost;
     public static String _MarsCloudMQTTURL = "ssl://"+_MarsCloudHost+":8883";
     public static int _DefaultConnectTimeOut = 10000;
