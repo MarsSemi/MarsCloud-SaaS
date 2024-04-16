@@ -95,9 +95,7 @@ _User.updateDataByKey(null, "UUID.SUID", [data key, can be null], _data);
 資料的取得部分，大致上有三種方式：  
 
 - **getData      : 使用時間區間取得資料**
-- **getDataByKey : 以指定UKey的方式取得資料**
-- **getLastData  : 以時間倒序的方式取得資料**
-
+  
 ```
 getData 的參數意義如下：
   
@@ -114,6 +112,7 @@ function MyCallBack(_data, _myitem){ ... }
 _User.getData("UUID.SUID", 195464870000, 19546540000, MyCallBack, _myitem);  
 
 ```
+- **getDataByKey : 以指定UKey的方式取得資料**
 
 ```
 getDataByKey 的參數意義如下：
@@ -122,7 +121,9 @@ _User.getDataByKey("UUID.SUID", "data_ukey", [callback, can be null], [user defi
 
 除了改成使用 Ukey 外，其餘參數與 getData 相同。
 ```
-
+  
+- **getLastData  : 以時間倒序的方式取得資料**
+  
 ```
 getLastData 的參數意義如下：
   
