@@ -85,14 +85,54 @@ let _data =
   humi_unit: "%"
 };
 
-_User.updateDataByKey(null, "UUID.SUID", "data key, can be null", _data);
+_User.updateDataByKey(null, "UUID.SUID", [data key, can be null], _data);
 
 ```
 上述範例，其中第三個參數，為該筆資料的 UKey，可以是 null。  
 當 UKey 設定為 null 時，系統會自動填上一個流水編號，若要特  
 別指定則自行填入。相同 UKey 的資料會被覆蓋，需要特別注意這點。  
 
+資料的取得部分，大致上有三種方式：  
 
+- **getData      : 使用時間區間取得資料**
+- **getDataByKey : 以指定UKey的方式取得資料**
+- **getLastData  : 以時間倒序的方式取得資料**
+
+```
+getData 的參數意義如下：
+  
+_User.getData("UUID.SUID", [start_time], [end_time], [callback, can be null], [user define item, can be null]);  
+
+其中的時間區間，為系統時間，以 million second 為單位。
+CallBack Function 有設定時，則會以 non-block 方式
+運作，大量資料存取時，可以讓網頁不卡死。
+
+function MyCallBack(_data, _myitem){ ... }  
+...  
+...  
+  
+_User.getData("UUID.SUID", 195464870000, 19546540000, MyCallBack, _myitem);  
+
+```
+
+```
+getDataByKey 的參數意義如下：
+  
+_User.getDataByKey("UUID.SUID", "data_ukey", [callback, can be null], [user define item, can be null]);  
+
+除了改成使用 Ukey 外，其餘參數與 getData 相同。
+```
+
+```
+getLastData 的參數意義如下：
+  
+_User.getLastData("UUID.SUID", "data_count", [callback, can be null], [user define item, can be null]);  
+
+除了指定資料 count 外，其餘參數與 getData 相同。
+當 count 設為 0 時，代表要取出該 Table 所有的資料。
+如果資料量很大，會造成網頁速度變慢或佔用記憶體，請謹慎
+使用。
+```
   
 ### 第三章 MQTT 與訊息收發  
   
