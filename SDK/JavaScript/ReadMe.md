@@ -138,15 +138,38 @@ _User.getLastData("UUID.SUID", "data_count", [callback, can be null], [user defi
 ### 第三章 MQTT 與訊息收發  
 
 JS 的 SDK，引用了 paho-mqtt 的 MQTT Client。本原生雲  
-系統，目前支援 3.X 的 MQTT 協議。使用方法如下：  
+系統，目前支援 3.X 的 MQTT 協議。系統中有三種類的 MQTT  
+訊息，分別是 data、event、自訂。Data 為任何資料更新時，
+都會收到的訊息，使用方法如下：  
 
 ```
-function OnMessage(_msg)
+function OnDataChange(_msg)
 {
 }
 
-_User.SubscribeData('*', OnMessage);  
+範例一 ： _User.SubscribeData('*', OnDataChange); //subscibe all
+範例二 ： _User.SubscribeData('dev.E2F0A9C3B5', OnDataChange); //subscibe specify data
 ```
+
+以上述範例來說，當有台裝置 dev.AABBCCDD 更新或新增資料時，
+若是全部訂閱的狀況，會收到該筆資料更新。而訂閱 dev.E2F0A9C3B5  
+的時候，則不會收到該筆資料更新。
+
+而 event 訂閱，則是會收到呼叫系統 Put Event 功能所拋出的  
+事件，如下：
+
+```
+function OnPushEvent(_msg)
+{
+}
+
+範例一 ： _User.SubscribeEvent('*', OnPushEvent); //subscibe all
+範例二 ： _User.SubscribeEvent('dev.E2F0A9C3B5', OnPushEvent); //subscibe specify data
+```
+自定義的方式，則是透過呼叫 SubscribeByMQTT_Adv 函式來完成，  
+其中的 Topic 就是對應 MQTT 中的 Topic, 使用起來也完全相同。  
+而要推送自定義的訊息，則是須透過呼叫系統的 Put Message 功能  
+來完成。
   
 ### 第四章 微服務功能呼叫  
   
