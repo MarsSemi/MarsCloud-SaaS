@@ -136,6 +136,17 @@ _User.getLastData("UUID.SUID", "data_count", [callback, can be null], [user defi
 ```
   
 ### 第三章 MQTT 與訊息收發  
+
+JS 的 SDK，引用了 paho-mqtt 的 MQTT Client。本原生雲  
+系統，目前支援 3.X 的 MQTT 協議。使用方法如下：  
+
+```
+function OnMessage(_msg)
+{
+}
+
+_User.SubscribeData('*', OnMessage);  
+```
   
 ### 第四章 微服務功能呼叫  
   
