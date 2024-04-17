@@ -177,7 +177,7 @@ function OnMyMessage(_msg)
 }
 
 範例一 ： _User.SubscribeByMQTT_Adv('+/#', OnMyMessage); //subscibe all
-範例二 ： _User.SubscribeByMQTT_Adv('your/topic/here', OnMyMessage); //subscibe specify data
+範例二 ： _User.SubscribeByMQTT_Adv('your/topic/here', OnMyMessage); //subscibe specify message
 ```
   
 ### 第四章 微服務功能呼叫  
