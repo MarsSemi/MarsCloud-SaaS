@@ -182,5 +182,18 @@ function OnMyMessage(_msg)
   
 ### 第四章 微服務功能呼叫  
   
+微服務呼叫，是透過系統的功能，呼叫系統以外的服務 API。用來  
+擴充整個專案的相關功能。使用方法如下：
+  
+```
+_User.callService('service.yourservice', '/api/hello', [post_data], [callback, can be null]);
+```
+  
+在與為服務設計人員，確定要呼叫的 Serive 名稱與對應的 API 後，  
+即可呼叫該功能來得到正確的運作結果。由於本系統原生支援混和雲的  
+運作，因此只要夠過這個單一函式，即可呼叫任何註冊至本系統之微服務。  
+而且該服務可以運作在與系統不同的網段，甚至是防火牆之內。詳情請參  
+考 [微服務撰寫文件](MarsCloud-SaaS/Services)。
+
 ### 第五章 進階使用  
   
