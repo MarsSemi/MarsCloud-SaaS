@@ -170,6 +170,15 @@ function OnPushEvent(_msg)
 其中的 Topic 就是對應 MQTT 中的 Topic, 使用起來也完全相同。  
 而要推送自定義的訊息，則是須透過呼叫系統的 Put Message 功能  
 來完成。
+
+```
+function OnMyMessage(_msg)
+{
+}
+
+範例一 ： _User.SubscribeByMQTT_Adv('+/#', OnMyMessage); //subscibe all
+範例二 ： _User.SubscribeByMQTT_Adv('your/topic/here', OnMyMessage); //subscibe specify data
+```
   
 ### 第四章 微服務功能呼叫  
   
