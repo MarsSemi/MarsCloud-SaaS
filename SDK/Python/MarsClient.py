@@ -43,6 +43,23 @@ class MarsClient:
         except:
             return False
 #--------------------------------------------------------------
+    def RegDevice(_self, _uuid, _suid, _profile, _name, _vender): 
+        try:
+            _payload = {}
+            _payload['uuid'] = _uuid
+            _payload['suid'] = _suid
+            _payload['suid'] = _suid
+            _payload['data_profile'] = _profile
+            _payload['name'] = _name
+            _payload['vender'] = _vender
+
+            _resp = _self.HttpRequest(_self.Host+"/api/usrinfo?method=adddatasrc", _payload)
+            
+            if _resp != None:
+                return True
+        except:
+            return False
+#--------------------------------------------------------------
     def PutData(_self, _uuid, _suid, _data): 
         try:
             _payload = {}
@@ -77,6 +94,20 @@ class MarsClient:
 
             _resp = _self.HttpRequest(_self.Host+"/api/del?data", _payload)
 
+            if _resp != None:
+                return True
+        except:
+            return False
+#--------------------------------------------------------------
+    def PutEvent(_self, _uuid, _suid, _data): 
+        try:
+            _payload = {}
+            _payload['uuid'] = _uuid
+            _payload['suid'] = _suid
+            _payload['values'] = [ _data ]
+
+            _resp = _self.HttpRequest(_self.Host+"/api/put?event", _payload)
+            
             if _resp != None:
                 return True
         except:
