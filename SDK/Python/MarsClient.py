@@ -7,7 +7,7 @@ class MarsClient:
 #--------------------------------------------------------------
     def HttpRequest(_self, _req, _payload):
         try:
-            _headers = { "Content-Type": "application/json" }
+            _headers = { "Content-Type": "application/json", "Cache-Control": "no-cache" }
 
             if _self.Token != None:
                 _headers["Authentication"] = "Bearer "+_self.Token
@@ -78,6 +78,24 @@ class MarsClient:
             _resp = _self.HttpRequest(_self.Host+"/api/del?data", _payload)
 
             if _resp != None:
+                return True
+        except:
+            return False
+#--------------------------------------------------------------
+    def CallService(_self, _service, _api, _payload): 
+        try:
+            
+            if _service == "service.databroker":
+                return _self.HttpRequest(_self.Host+_api, _payload)
+            else:
+                return _self.HttpRequest(_self.Host+"/services/"+_service+_api, _payload)
+        except:
+            return None
+#--------------------------------------------------------------
+    def PushMessage(_self, _topic, _payload): 
+        try:            
+            _topic = _topic.replace('/', '.')
+            if _self.HttpRequest(_self.Host+"/api/put?message&topic="+_topic, _payload) != None:
                 return True
         except:
             return False
