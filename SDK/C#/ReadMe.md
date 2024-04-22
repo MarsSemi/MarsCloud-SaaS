@@ -9,12 +9,14 @@
   
 <table>
   <tr>
+    <td>IDE</td>
     <td>版本</td>
     <td>CPU</td>
     <td>OS</td>
     <td>運作結果</td>
   </tr>
   <tr>
+    <td>Visual Studio</td>
     <td>.NET 4.X</td>
     <td>x86、x64</td>
     <td>Windows</td>
