@@ -13,7 +13,7 @@ int main(void)
 	MarsClient _client("test", "test", "justtest");
 
 	if(_client.DoLogin("https://test.mars-cloud.com")) printf("Login SUCCESS\n");
-	if(_client.RegDevice("test.com", "test", "metter01", "both.temp")) printf("Reg Device SUCCESS\n");
+	if(_client.RegDevice("test", "metter01", "both.temp", "virtual_device", "test.com")) printf("Reg Device SUCCESS\n");
 	if(_client.PutData("test", "metter01", _data)) printf("Put Data SUCCESS\n");
 	if(_client.CallService("service.databroker", "/api/hello", NULL, _resp)) printf("Call Service SUCCESS\n");
 
