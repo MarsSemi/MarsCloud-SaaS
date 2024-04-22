@@ -73,9 +73,9 @@ private:
 	const static int _DefaultTimeOut = 30; //sec
 	const static int _DefaultAcceptTimeOut = 5000; //msec
 private:
-	char _Account[256];
-	char _Password[16];
-	char _Proj[256];
+	char _Account[128];
+	char _Password[24];
+	char _Proj[64];
 	char _Token[513];
 	char _Host[128];
 private:
@@ -89,10 +89,11 @@ public:
 	~MarsClient();
 
 	bool DoLogin(const char *_host);
-	bool RegDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type);
+	bool RegDevice(const char *_uuid, const char *_suid, const char *_type, const char *_name, const char *_vendor);
 
 	bool PutData(const char *_uuid, const char *_suid, const char *_content);
 	bool GetLastData(const char *_uuid, const char *_suid, int _count, char *_result);
+	bool RemoveData(const char *_uuid, const char *_suid, const char *_ukey, char *_result);
 
 	bool CallService(const char *_service, const char *_api, const char *_postData, char *_result);
 };
@@ -103,8 +104,6 @@ MarsClient::MarsClient(const char *_account, const char *_password, const char *
 {
 	try
 	{
-		InitNetwork();
-
 		if (_account == NULL || _password == NULL)
 			return;
 
@@ -261,14 +260,14 @@ bool MarsClient::DoLogin(const char *_host)
 	return false;
 }
 //--------------------------------------------------------------
-bool MarsClient::RegDevice(const char *_vendor, const char *_uuid, const char *_suid, const char *_type)
+bool MarsClient::RegDevice(const char *_uuid, const char *_suid, const char *_type, const char *_name, const char *_vender)
 {      	
 	try
 	{
 		char _resp[128] = { '\0' };
 		char _info[256] = { '\0' };
 
-		sprintf(_info, "{ \"vendor\":\"%s\", \"uuid\":\"%s\", \"suid\":\"%s\", \"data_profile\":\"%s\" }", _vendor, _uuid, _suid, _type);
+		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"data_profile\":\"%s\", \"name\":\"%s\", \"vender\":\"%s\" }", _uuid, _suid, _type, _name, _vender);
 
 		return HttpPostData(_resp, "/api/usrinfo?method=adddatasrc", _info);    
 	}
@@ -300,6 +299,20 @@ bool MarsClient::GetLastData(const char *_uuid, const char *_suid, int _count, c
 		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"count\":%d }", _uuid, _suid, _count);
 
 		return HttpGetData(_result, "/api/lastdata?method=read");
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return false;
+}
+//--------------------------------------------------------------
+bool MarsClient::RemoveData(const char *_uuid, const char *_suid, const char *_ukey, char *_result)
+{
+	try
+	{
+		char _info[256] = { '\0' };
+
+		sprintf(_info, "{ \"uuid\":\"%s\", \"suid\":\"%s\", \"ukey\":\"%s\" }", _uuid, _suid, _ukey);
+
+		return HttpGetData(_result, "/api/del?data");
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
