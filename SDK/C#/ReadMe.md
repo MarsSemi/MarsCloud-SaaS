@@ -25,4 +25,11 @@
 其中會使用 **Newtonsoft.Json** 來解析 JSON 物件，該物件  
 可在以下的連結下載後使用：
 
-[官網](https://www.newtonsoft.com/json) or [GitHub](https://www.newtonsoft.com/json)
+[官網](https://www.newtonsoft.com/json) or [GitHub](https://www.newtonsoft.com/json)  
+
+**Newtonsoft.Json** 下載後，記得在確認兩件事情  
+
+- **確認對應正確的 .NET 版本**
+- **確認專案有加入該 Newtonsoft.Json.dll 的參考**
+
+接著便可正常編譯與執行
