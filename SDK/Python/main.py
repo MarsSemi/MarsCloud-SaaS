@@ -21,7 +21,15 @@ def TestAPIs():
     try:
         if _Client.Login("https://"+_Host, "test", "test", "justtest"):
 
+            TestMQTT()
+            
+            _resp = _Client.RegDevice("dev", "test", "both.tempmeter", "VirtualDevice", "com.test")
+            print("RegDevice : "+str(_resp))
+
             _resp = _Client.PutData("dev", "test", { "temp": 23.5, "humi": 87 })
+            print("PutData : "+str(_resp))
+
+            _resp = _Client.PutEvent("dev", "test", { "temp": 23.5, "humi": 87 })
             print("PutData : "+str(_resp))
 
             _resp = json.loads(_Client.GetLastData("dev", "test", 1));
@@ -50,7 +58,6 @@ def TestMQTT():
 def main(): 
     try:
         TestAPIs()
-        TestMQTT()
 
         while True:
             time.sleep(0.1)
