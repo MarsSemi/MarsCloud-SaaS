@@ -131,8 +131,8 @@ public class HttpAPI_API implements HttpHandler
 	    		String _authToken = "";
 	    		JSONObject _params = _request.length > 1 ? ParseParams(_request[1]) : new JSONObject();
 	    		JSONObject _jwt_payload = null;
-				String _bodyText = IOUtils.toString(_http.getRequestBody(), ServiceData._DefaultCharset);
-				JSONObject _body = _bodyText.startsWith("{") ? new JSONObject(_bodyText) : new JSONObject();
+			String _bodyText = IOUtils.toString(_http.getRequestBody(), ServiceData._DefaultCharset);
+			JSONObject _body = _bodyText.startsWith("{") ? new JSONObject(_bodyText) : new JSONObject();
 	    		        			        			        		
 	    		try
 	    		{
@@ -148,18 +148,18 @@ public class HttpAPI_API implements HttpHandler
 	    		{	
 	    			switch(_last_item)
 	    			{
-						case "add_data": _RContent = AddData(_http, _params, _body); break;
-						case "del_data": _RContent = DelData(_http, _params, _body); break;
-						case "list_data": _RContent = ListData(_http, _params, _body); break;
-					}
+					case "add_data": _RContent = AddData(_http, _params, _body); break;
+					case "del_data": _RContent = DelData(_http, _params, _body); break;
+					case "list_data": _RContent = ListData(_http, _params, _body); break;
+				}
 	    		}
 	    		
 	    		if(_RContent == null)
 		    		switch(_last_item)
-					{
-						case "hello": _RContent = SayHello(_http, _params, _bodyText); break;
-						case "test_ext_js": _RContent = TestExtJS(_http, _params, IOUtils.toString(_http.getRequestBody(), ServiceData._DefaultCharset)); break;
-					}
+				{
+					case "hello": _RContent = SayHello(_http, _params, _bodyText); break;
+					case "test_ext_js": _RContent = TestExtJS(_http, _params, IOUtils.toString(_http.getRequestBody(), ServiceData._DefaultCharset)); break;
+				}
 	    		
 	    		if(_RContent != null && _RContent.length() > 0)
 	    		{
