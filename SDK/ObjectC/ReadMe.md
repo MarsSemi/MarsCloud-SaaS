@@ -15,7 +15,7 @@
     <td>clang</td>
     <td>15.X</td>
     <td>x64、ARM64</td>
-    <td>Sonoma 14.X</td>
+    <td>Sonoma 14、iOS 16、iOS 17</td>
     <td>OK</td>
     <td>OK</td>
   </tr>
@@ -23,7 +23,7 @@
     <td>XCode</td>
     <td>15.X</td>
     <td>x64、ARM64</td>
-    <td>Sonoma 14.X</td>
+    <td>Sonoma 14、iOS 16、iOS 17</td>
     <td>OK</td>
     <td>OK</td>
   </tr>
