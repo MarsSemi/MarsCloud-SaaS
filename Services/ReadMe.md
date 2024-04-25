@@ -14,11 +14,10 @@
 
 - **SimpleService : 最基礎的範例，可建立一個空的服務，並註冊至主系統。**
 
-## 編譯方式
+## 編譯微服務
 
 本區域的範例，皆使用 Eclipse IDE 與 MAVEN 來建置。Eclipse  
-可至這裡下載：[Eclipse 官網](https://eclipseide.org/)。 
-  
+可至這裡下載：[Eclipse 官網](https://eclipseide.org/)。  
 安裝時，請選擇 Eclipse IDE 版本即可，若有已安裝 Eclipse  
 IDE for Java EE 的使用者，也可直接沿用，不需再裝回一般版。  
 
@@ -50,6 +49,24 @@ IDE for Java EE 的使用者，也可直接沿用，不需再裝回一般版。
 運作在地端電腦中。運作方式請看參考下一章節。
   
 <img src="https://test.mars-cloud.com/images/1714028621843.jpg" width="480"></img>
+
+## 執行微服務
+  
+微服務編譯完成後，就會產生出一個 .jar 檔案。此時使用 命令列 或 終端機  
+程式，進入該目錄，並使用 java 來執行該服務，則該服務便會自動上線註冊，  
+並且正常運作。
+
+```
+前台運作指令: java -jar XXXXX.jar
+```
+<img src="https://test.mars-cloud.com/images/1714031063898.jpg" width="480"></img>
+  
+完成服務前台啟動後，即可開始進行功能性的測試。相關測試環境或程式碼，請  
+依照個人需求，或是開發環境，至 [Client SDK](/tree/main/SDK) 下載。  
+以下使用 Python 為範例，並說明 service、api、client 的對應關係：  
+
+<img src="https://test.mars-cloud.com/images/1714033106544.jpg"></img>
+
 
 ## 聯絡方式
 
