@@ -62,10 +62,18 @@ IDE for Java EE 的使用者，也可直接沿用，不需再裝回一般版。
 <img src="https://test.mars-cloud.com/images/1714031063898.jpg" width="480"></img>
   
 完成服務前台啟動後，即可開始進行功能性的測試。相關測試環境或程式碼，請  
-依照個人需求，或是開發環境，至 [Client SDK](/tree/main/SDK) 下載。  
-以下使用 Python 為範例，並說明 service、api、client 的對應關係：  
+依照個人需求，或是開發環境，至 [Client SDK](/tree/main/SDK) 下載。以下使用  
+Python 為範例，並說明 service、api、client 的對應關係：  
 
 <img src="https://test.mars-cloud.com/images/1714033106544.jpg"></img>
+
+至此， client 端與 service 端的傳輸鏈路已經打通，工程人員便可專注在  
+實現微服務功能上。
+
+## 微服務的部署與後台運作
+
+
+
 
 
 ## 聯絡方式
