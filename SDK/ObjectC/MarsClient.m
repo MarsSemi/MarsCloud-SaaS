@@ -10,12 +10,11 @@
         NSString *_urlText = [_Host stringByAppendingString:_api];
         NSURL *_url = [NSURL URLWithString: _urlText];
         NSURLSession *_session = [NSURLSession sharedSession];
-        NSMutableURLRequest *_req = [NSMutableURLRequest requestWithURL:_url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:30.0];
+        NSMutableURLRequest *_req = [NSMutableURLRequest requestWithURL:_url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:15.0];
 
         if(_Token != nil) [_req setValue :[@"Bearer " stringByAppendingString:_Token] forHTTPHeaderField:@"Authentication"];
 
         [_req setValue :@"application/json" forHTTPHeaderField:@"Content-Type"];
-        [_req setTimeoutInterval :30];
         [_req setHTTPMethod :_payload == nil ? @"GET" : @"POST"];
         [_req setHTTPBody :_payload];
 
@@ -59,8 +58,12 @@
 
         [self HttpRequest :@"/auth/login?" :[NSJSONSerialization dataWithJSONObject:_payload options:NSJSONWritingPrettyPrinted error:nil] :^(NSData *_data)
         {
-             _Token = [[NSString alloc] initWithData :_data encoding:NSUTF8StringEncoding];
-             dispatch_semaphore_signal(_sync);
+            @try
+            {
+                 _Token = [[NSString alloc] initWithData :_data encoding:NSUTF8StringEncoding];
+            }
+            @catch (NSException *_e) {}
+            @finally { dispatch_semaphore_signal(_sync); }
         }];
         
         dispatch_semaphore_wait(_sync, dispatch_time(DISPATCH_TIME_NOW, 15*NSEC_PER_SEC));
@@ -91,7 +94,7 @@
 
         [self HttpRequest :@"/api/put?data" :[NSJSONSerialization dataWithJSONObject:_data options:NSJSONWritingPrettyPrinted error:nil] :^(NSData *_data)
         {
-             @try
+            @try
             {
                 _result = (_data != nil);
                 if(_handler != nil)
