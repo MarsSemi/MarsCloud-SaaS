@@ -15,7 +15,7 @@
     <td>clang</td>
     <td>15.X</td>
     <td>x64、ARM64</td>
-    <td>Mac OS</td>
+    <td>Sonoma 14.X</td>
     <td>OK</td>
     <td>OK</td>
   </tr>
