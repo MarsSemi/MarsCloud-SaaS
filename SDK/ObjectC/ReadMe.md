@@ -27,14 +27,6 @@
     <td>OK</td>
     <td>OK</td>
   </tr>
-  <tr>
-    <td>clang</td>
-    <td>15.X</td>
-    <td>x64、ARM64</td>
-    <td>Sonoma 14.X</td>
-    <td>OK</td>
-    <td>OK</td>
-  </tr>
 </table>
 
 ## 編譯過程
