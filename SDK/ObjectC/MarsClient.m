@@ -50,9 +50,9 @@
         NSMutableDictionary *_payload = [[NSMutableDictionary alloc]init];
         NSData *_respone = nil;
 
-        [_payload setValue:_User forKey:@"usr"];
-        [_payload setValue:_Password forKey:@"pwd"];
-        [_payload setValue:_Proj forKey:@"proj"];
+        _payload[@"usr"] = _User;
+        _payload[@"pwd"] = _Password;
+        _payload[@"proj"] = _Proj;
 
         dispatch_semaphore_t _sync = dispatch_semaphore_create(0);
 
