@@ -52,7 +52,7 @@ MarsMQTT::MarsMQTT(MarsClient *_client)
 		_LostCallback = NULL;
 		_RecvCallback = NULL;
 
-		sprintf(_id, "%s@12345", _MarsClient->GetToken());	
+		sprintf(_id, "%s@%d", _MarsClient->GetToken(), rand()%10000);	
 
 		MQTTClient_createWithOptions(&_MQTTClient, "wss://test.mars-cloud.com:8884", _id, MQTTCLIENT_PERSISTENCE_NONE, NULL, &_createOpts);
 	}
