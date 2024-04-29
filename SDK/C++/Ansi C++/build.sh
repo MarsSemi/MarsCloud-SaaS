@@ -1,0 +1,1 @@
+gcc-13 -I./MQTTClient/include -L./MQTTClient/lib/ main.cpp MarsClient.cpp MarsMQTT.cpp -o test -lcurl -lstdc++ -lpthread -lpaho-mqtt3cs
