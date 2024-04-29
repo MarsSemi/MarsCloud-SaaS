@@ -1,0 +1,773 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E20F88442BDB942F00D52AF3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E20F88432BDB942F00D52AF3 /* Assets.xcassets */; };
+		E20F88472BDB942F00D52AF3 /* Base in Resources */ = {isa = PBXBuildFile; fileRef = E20F88462BDB942F00D52AF3 /* Base */; };
+		E20F88542BDB942F00D52AF3 /* MarsClientTests.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F88532BDB942F00D52AF3 /* MarsClientTests.m */; };
+		E20F885E2BDB942F00D52AF3 /* MarsClientUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F885D2BDB942F00D52AF3 /* MarsClientUITests.m */; };
+		E20F88602BDB942F00D52AF3 /* MarsClientUITestsLaunchTests.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F885F2BDB942F00D52AF3 /* MarsClientUITestsLaunchTests.m */; };
+		E2B6745D2BDBA02E001DD60B /* MQTTClient in Resources */ = {isa = PBXBuildFile; fileRef = E2B6745C2BDBA02E001DD60B /* MQTTClient */; };
+		E2B675262BDBA268001DD60B /* MarsClient.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F886D2BDB947700D52AF3 /* MarsClient.m */; };
+		E2B675272BDBA268001DD60B /* MarsMQTT.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F886F2BDB947700D52AF3 /* MarsMQTT.m */; };
+		E2B675282BDBA268001DD60B /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F883E2BDB942E00D52AF3 /* AppDelegate.m */; };
+		E2B675292BDBA268001DD60B /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F88412BDB942E00D52AF3 /* ViewController.m */; };
+		E2B6752A2BDBA268001DD60B /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E20F88482BDB942F00D52AF3 /* main.m */; };
+		E2B6752B2BDBA280001DD60B /* ForegroundReconnection.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674EB2BDBA213001DD60B /* ForegroundReconnection.m */; };
+		E2B6752C2BDBA280001DD60B /* GCDTimer.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674DE2BDBA213001DD60B /* GCDTimer.m */; };
+		E2B6752D2BDBA280001DD60B /* MQTTCFSocketDecoder.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674C52BDBA212001DD60B /* MQTTCFSocketDecoder.m */; };
+		E2B6752E2BDBA280001DD60B /* MQTTCFSocketEncoder.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674ED2BDBA213001DD60B /* MQTTCFSocketEncoder.m */; };
+		E2B6752F2BDBA280001DD60B /* MQTTCFSocketTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674C12BDBA212001DD60B /* MQTTCFSocketTransport.m */; };
+		E2B675302BDBA280001DD60B /* MQTTCoreDataPersistence.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674E52BDBA213001DD60B /* MQTTCoreDataPersistence.m */; };
+		E2B675312BDBA280001DD60B /* MQTTDecoder.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674E32BDBA213001DD60B /* MQTTDecoder.m */; };
+		E2B675322BDBA280001DD60B /* MQTTInMemoryPersistence.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674E82BDBA213001DD60B /* MQTTInMemoryPersistence.m */; };
+		E2B675332BDBA280001DD60B /* MQTTLog.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674DD2BDBA213001DD60B /* MQTTLog.m */; };
+		E2B675342BDBA280001DD60B /* MQTTMessage.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674C72BDBA212001DD60B /* MQTTMessage.m */; };
+		E2B675352BDBA280001DD60B /* MQTTProperties.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674CF2BDBA212001DD60B /* MQTTProperties.m */; };
+		E2B675362BDBA280001DD60B /* MQTTSession.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674CC2BDBA212001DD60B /* MQTTSession.m */; };
+		E2B675372BDBA280001DD60B /* MQTTSessionLegacy.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674C32BDBA212001DD60B /* MQTTSessionLegacy.m */; };
+		E2B675382BDBA280001DD60B /* MQTTSessionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674DC2BDBA212001DD60B /* MQTTSessionManager.m */; };
+		E2B675392BDBA280001DD60B /* MQTTSessionSynchron.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674EE2BDBA213001DD60B /* MQTTSessionSynchron.m */; };
+		E2B6753A2BDBA280001DD60B /* MQTTSSLSecurityPolicy.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674D62BDBA212001DD60B /* MQTTSSLSecurityPolicy.m */; };
+		E2B6753B2BDBA280001DD60B /* MQTTSSLSecurityPolicyDecoder.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674E02BDBA213001DD60B /* MQTTSSLSecurityPolicyDecoder.m */; };
+		E2B6753C2BDBA280001DD60B /* MQTTSSLSecurityPolicyEncoder.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674DB2BDBA212001DD60B /* MQTTSSLSecurityPolicyEncoder.m */; };
+		E2B6753D2BDBA280001DD60B /* MQTTSSLSecurityPolicyTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674D12BDBA212001DD60B /* MQTTSSLSecurityPolicyTransport.m */; };
+		E2B6753E2BDBA280001DD60B /* MQTTStrict.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674D82BDBA212001DD60B /* MQTTStrict.m */; };
+		E2B6753F2BDBA280001DD60B /* MQTTTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674F02BDBA213001DD60B /* MQTTTransport.m */; };
+		E2B675402BDBA280001DD60B /* MQTTWebsocketTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674DA2BDBA212001DD60B /* MQTTWebsocketTransport.m */; };
+		E2B675412BDBA280001DD60B /* ReconnectTimer.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674EA2BDBA213001DD60B /* ReconnectTimer.m */; };
+		E2B675422BDBA280001DD60B /* SRWebSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = E2B674CD2BDBA212001DD60B /* SRWebSocket.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E20F88502BDB942F00D52AF3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E20F88322BDB942E00D52AF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E20F88392BDB942E00D52AF3;
+			remoteInfo = MarsClient;
+		};
+		E20F885A2BDB942F00D52AF3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E20F88322BDB942E00D52AF3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E20F88392BDB942E00D52AF3;
+			remoteInfo = MarsClient;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		E20F883A2BDB942E00D52AF3 /* MarsClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarsClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E20F883D2BDB942E00D52AF3 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		E20F883E2BDB942E00D52AF3 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		E20F88402BDB942E00D52AF3 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
+		E20F88412BDB942E00D52AF3 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		E20F88432BDB942F00D52AF3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E20F88462BDB942F00D52AF3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		E20F88482BDB942F00D52AF3 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		E20F884A2BDB942F00D52AF3 /* MarsClient.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MarsClient.entitlements; sourceTree = "<group>"; };
+		E20F884F2BDB942F00D52AF3 /* MarsClientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarsClientTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E20F88532BDB942F00D52AF3 /* MarsClientTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MarsClientTests.m; sourceTree = "<group>"; };
+		E20F88592BDB942F00D52AF3 /* MarsClientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarsClientUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E20F885D2BDB942F00D52AF3 /* MarsClientUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MarsClientUITests.m; sourceTree = "<group>"; };
+		E20F885F2BDB942F00D52AF3 /* MarsClientUITestsLaunchTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MarsClientUITestsLaunchTests.m; sourceTree = "<group>"; };
+		E20F886C2BDB947700D52AF3 /* MarsMQTT.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MarsMQTT.h; sourceTree = "<group>"; };
+		E20F886D2BDB947700D52AF3 /* MarsClient.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MarsClient.m; sourceTree = "<group>"; };
+		E20F886E2BDB947700D52AF3 /* MarsClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MarsClient.h; sourceTree = "<group>"; };
+		E20F886F2BDB947700D52AF3 /* MarsMQTT.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MarsMQTT.m; sourceTree = "<group>"; };
+		E20F88752BDB9A7B00D52AF3 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		E2B6745C2BDBA02E001DD60B /* MQTTClient */ = {isa = PBXFileReference; lastKnownFileType = folder; path = MQTTClient; sourceTree = "<group>"; };
+		E2B674BD2BDBA212001DD60B /* MQTTInMemoryPersistence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTInMemoryPersistence.h; sourceTree = "<group>"; };
+		E2B674BE2BDBA212001DD60B /* MQTTSessionManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSessionManager.h; sourceTree = "<group>"; };
+		E2B674BF2BDBA212001DD60B /* MQTTSSLSecurityPolicyTransport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSSLSecurityPolicyTransport.h; sourceTree = "<group>"; };
+		E2B674C02BDBA212001DD60B /* MQTTWebsocketTransport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTWebsocketTransport.h; sourceTree = "<group>"; };
+		E2B674C12BDBA212001DD60B /* MQTTCFSocketTransport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTCFSocketTransport.m; sourceTree = "<group>"; };
+		E2B674C22BDBA212001DD60B /* MQTTSessionSynchron.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSessionSynchron.h; sourceTree = "<group>"; };
+		E2B674C32BDBA212001DD60B /* MQTTSessionLegacy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSessionLegacy.m; sourceTree = "<group>"; };
+		E2B674C42BDBA212001DD60B /* SocketRocket.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SocketRocket.h; sourceTree = "<group>"; };
+		E2B674C52BDBA212001DD60B /* MQTTCFSocketDecoder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTCFSocketDecoder.m; sourceTree = "<group>"; };
+		E2B674C62BDBA212001DD60B /* MQTTStrict.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTStrict.h; sourceTree = "<group>"; };
+		E2B674C72BDBA212001DD60B /* MQTTMessage.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTMessage.m; sourceTree = "<group>"; };
+		E2B674C82BDBA212001DD60B /* ReconnectTimer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ReconnectTimer.h; sourceTree = "<group>"; };
+		E2B674C92BDBA212001DD60B /* MQTTCoreDataPersistence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTCoreDataPersistence.h; sourceTree = "<group>"; };
+		E2B674CA2BDBA212001DD60B /* MQTTSSLSecurityPolicyDecoder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSSLSecurityPolicyDecoder.h; sourceTree = "<group>"; };
+		E2B674CB2BDBA212001DD60B /* MQTTCFSocketDecoder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTCFSocketDecoder.h; sourceTree = "<group>"; };
+		E2B674CC2BDBA212001DD60B /* MQTTSession.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSession.m; sourceTree = "<group>"; };
+		E2B674CD2BDBA212001DD60B /* SRWebSocket.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SRWebSocket.m; sourceTree = "<group>"; };
+		E2B674CE2BDBA212001DD60B /* GCDTimer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDTimer.h; sourceTree = "<group>"; };
+		E2B674CF2BDBA212001DD60B /* MQTTProperties.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTProperties.m; sourceTree = "<group>"; };
+		E2B674D02BDBA212001DD60B /* ForegroundReconnection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ForegroundReconnection.h; sourceTree = "<group>"; };
+		E2B674D12BDBA212001DD60B /* MQTTSSLSecurityPolicyTransport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSSLSecurityPolicyTransport.m; sourceTree = "<group>"; };
+		E2B674D22BDBA212001DD60B /* MQTTCFSocketEncoder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTCFSocketEncoder.h; sourceTree = "<group>"; };
+		E2B674D32BDBA212001DD60B /* MQTTLog.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTLog.h; sourceTree = "<group>"; };
+		E2B674D42BDBA212001DD60B /* MQTTDecoder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTDecoder.h; sourceTree = "<group>"; };
+		E2B674D52BDBA212001DD60B /* MQTTPersistence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTPersistence.h; sourceTree = "<group>"; };
+		E2B674D62BDBA212001DD60B /* MQTTSSLSecurityPolicy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSSLSecurityPolicy.m; sourceTree = "<group>"; };
+		E2B674D72BDBA212001DD60B /* SRWebSocket.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SRWebSocket.h; sourceTree = "<group>"; };
+		E2B674D82BDBA212001DD60B /* MQTTStrict.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTStrict.m; sourceTree = "<group>"; };
+		E2B674D92BDBA212001DD60B /* MQTTProperties.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTProperties.h; sourceTree = "<group>"; };
+		E2B674DA2BDBA212001DD60B /* MQTTWebsocketTransport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTWebsocketTransport.m; sourceTree = "<group>"; };
+		E2B674DB2BDBA212001DD60B /* MQTTSSLSecurityPolicyEncoder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSSLSecurityPolicyEncoder.m; sourceTree = "<group>"; };
+		E2B674DC2BDBA212001DD60B /* MQTTSessionManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSessionManager.m; sourceTree = "<group>"; };
+		E2B674DD2BDBA213001DD60B /* MQTTLog.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTLog.m; sourceTree = "<group>"; };
+		E2B674DE2BDBA213001DD60B /* GCDTimer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDTimer.m; sourceTree = "<group>"; };
+		E2B674DF2BDBA213001DD60B /* MQTTSSLSecurityPolicy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSSLSecurityPolicy.h; sourceTree = "<group>"; };
+		E2B674E02BDBA213001DD60B /* MQTTSSLSecurityPolicyDecoder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSSLSecurityPolicyDecoder.m; sourceTree = "<group>"; };
+		E2B674E12BDBA213001DD60B /* MQTTCFSocketTransport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTCFSocketTransport.h; sourceTree = "<group>"; };
+		E2B674E22BDBA213001DD60B /* MQTTMessage.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTMessage.h; sourceTree = "<group>"; };
+		E2B674E32BDBA213001DD60B /* MQTTDecoder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTDecoder.m; sourceTree = "<group>"; };
+		E2B674E42BDBA213001DD60B /* MQTTSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSession.h; sourceTree = "<group>"; };
+		E2B674E52BDBA213001DD60B /* MQTTCoreDataPersistence.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTCoreDataPersistence.m; sourceTree = "<group>"; };
+		E2B674E62BDBA213001DD60B /* MQTTClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTClient.h; sourceTree = "<group>"; };
+		E2B674E72BDBA213001DD60B /* MQTTSSLSecurityPolicyEncoder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSSLSecurityPolicyEncoder.h; sourceTree = "<group>"; };
+		E2B674E82BDBA213001DD60B /* MQTTInMemoryPersistence.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTInMemoryPersistence.m; sourceTree = "<group>"; };
+		E2B674E92BDBA213001DD60B /* MQTTTransport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTTransport.h; sourceTree = "<group>"; };
+		E2B674EA2BDBA213001DD60B /* ReconnectTimer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ReconnectTimer.m; sourceTree = "<group>"; };
+		E2B674EB2BDBA213001DD60B /* ForegroundReconnection.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ForegroundReconnection.m; sourceTree = "<group>"; };
+		E2B674EC2BDBA213001DD60B /* MQTTSessionLegacy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MQTTSessionLegacy.h; sourceTree = "<group>"; };
+		E2B674ED2BDBA213001DD60B /* MQTTCFSocketEncoder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTCFSocketEncoder.m; sourceTree = "<group>"; };
+		E2B674EE2BDBA213001DD60B /* MQTTSessionSynchron.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTSessionSynchron.m; sourceTree = "<group>"; };
+		E2B674EF2BDBA213001DD60B /* MQTTClient-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MQTTClient-Prefix.pch"; sourceTree = "<group>"; };
+		E2B674F02BDBA213001DD60B /* MQTTTransport.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MQTTTransport.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E20F88372BDB942E00D52AF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E20F884C2BDB942F00D52AF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E20F88562BDB942F00D52AF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E20F88312BDB942E00D52AF3 = {
+			isa = PBXGroup;
+			children = (
+				E2B674BC2BDBA1CD001DD60B /* MQTTClient */,
+				E20F883C2BDB942E00D52AF3 /* MarsClient */,
+				E20F88522BDB942F00D52AF3 /* MarsClientTests */,
+				E20F885C2BDB942F00D52AF3 /* MarsClientUITests */,
+				E20F883B2BDB942E00D52AF3 /* Products */,
+				E20F88742BDB9A7B00D52AF3 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		E20F883B2BDB942E00D52AF3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E20F883A2BDB942E00D52AF3 /* MarsClient.app */,
+				E20F884F2BDB942F00D52AF3 /* MarsClientTests.xctest */,
+				E20F88592BDB942F00D52AF3 /* MarsClientUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E20F883C2BDB942E00D52AF3 /* MarsClient */ = {
+			isa = PBXGroup;
+			children = (
+				E2B6745C2BDBA02E001DD60B /* MQTTClient */,
+				E20F886E2BDB947700D52AF3 /* MarsClient.h */,
+				E20F886D2BDB947700D52AF3 /* MarsClient.m */,
+				E20F886C2BDB947700D52AF3 /* MarsMQTT.h */,
+				E20F886F2BDB947700D52AF3 /* MarsMQTT.m */,
+				E20F883D2BDB942E00D52AF3 /* AppDelegate.h */,
+				E20F883E2BDB942E00D52AF3 /* AppDelegate.m */,
+				E20F88402BDB942E00D52AF3 /* ViewController.h */,
+				E20F88412BDB942E00D52AF3 /* ViewController.m */,
+				E20F88432BDB942F00D52AF3 /* Assets.xcassets */,
+				E20F88452BDB942F00D52AF3 /* Main.storyboard */,
+				E20F88482BDB942F00D52AF3 /* main.m */,
+				E20F884A2BDB942F00D52AF3 /* MarsClient.entitlements */,
+			);
+			path = MarsClient;
+			sourceTree = "<group>";
+		};
+		E20F88522BDB942F00D52AF3 /* MarsClientTests */ = {
+			isa = PBXGroup;
+			children = (
+				E20F88532BDB942F00D52AF3 /* MarsClientTests.m */,
+			);
+			path = MarsClientTests;
+			sourceTree = "<group>";
+		};
+		E20F885C2BDB942F00D52AF3 /* MarsClientUITests */ = {
+			isa = PBXGroup;
+			children = (
+				E20F885D2BDB942F00D52AF3 /* MarsClientUITests.m */,
+				E20F885F2BDB942F00D52AF3 /* MarsClientUITestsLaunchTests.m */,
+			);
+			path = MarsClientUITests;
+			sourceTree = "<group>";
+		};
+		E20F88742BDB9A7B00D52AF3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				E20F88752BDB9A7B00D52AF3 /* CoreData.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E2B674BC2BDBA1CD001DD60B /* MQTTClient */ = {
+			isa = PBXGroup;
+			children = (
+				E2B674D02BDBA212001DD60B /* ForegroundReconnection.h */,
+				E2B674EB2BDBA213001DD60B /* ForegroundReconnection.m */,
+				E2B674CE2BDBA212001DD60B /* GCDTimer.h */,
+				E2B674DE2BDBA213001DD60B /* GCDTimer.m */,
+				E2B674CB2BDBA212001DD60B /* MQTTCFSocketDecoder.h */,
+				E2B674C52BDBA212001DD60B /* MQTTCFSocketDecoder.m */,
+				E2B674D22BDBA212001DD60B /* MQTTCFSocketEncoder.h */,
+				E2B674ED2BDBA213001DD60B /* MQTTCFSocketEncoder.m */,
+				E2B674E12BDBA213001DD60B /* MQTTCFSocketTransport.h */,
+				E2B674C12BDBA212001DD60B /* MQTTCFSocketTransport.m */,
+				E2B674EF2BDBA213001DD60B /* MQTTClient-Prefix.pch */,
+				E2B674E62BDBA213001DD60B /* MQTTClient.h */,
+				E2B674C92BDBA212001DD60B /* MQTTCoreDataPersistence.h */,
+				E2B674E52BDBA213001DD60B /* MQTTCoreDataPersistence.m */,
+				E2B674D42BDBA212001DD60B /* MQTTDecoder.h */,
+				E2B674E32BDBA213001DD60B /* MQTTDecoder.m */,
+				E2B674BD2BDBA212001DD60B /* MQTTInMemoryPersistence.h */,
+				E2B674E82BDBA213001DD60B /* MQTTInMemoryPersistence.m */,
+				E2B674D32BDBA212001DD60B /* MQTTLog.h */,
+				E2B674DD2BDBA213001DD60B /* MQTTLog.m */,
+				E2B674E22BDBA213001DD60B /* MQTTMessage.h */,
+				E2B674C72BDBA212001DD60B /* MQTTMessage.m */,
+				E2B674D52BDBA212001DD60B /* MQTTPersistence.h */,
+				E2B674D92BDBA212001DD60B /* MQTTProperties.h */,
+				E2B674CF2BDBA212001DD60B /* MQTTProperties.m */,
+				E2B674E42BDBA213001DD60B /* MQTTSession.h */,
+				E2B674CC2BDBA212001DD60B /* MQTTSession.m */,
+				E2B674EC2BDBA213001DD60B /* MQTTSessionLegacy.h */,
+				E2B674C32BDBA212001DD60B /* MQTTSessionLegacy.m */,
+				E2B674BE2BDBA212001DD60B /* MQTTSessionManager.h */,
+				E2B674DC2BDBA212001DD60B /* MQTTSessionManager.m */,
+				E2B674C22BDBA212001DD60B /* MQTTSessionSynchron.h */,
+				E2B674EE2BDBA213001DD60B /* MQTTSessionSynchron.m */,
+				E2B674DF2BDBA213001DD60B /* MQTTSSLSecurityPolicy.h */,
+				E2B674D62BDBA212001DD60B /* MQTTSSLSecurityPolicy.m */,
+				E2B674CA2BDBA212001DD60B /* MQTTSSLSecurityPolicyDecoder.h */,
+				E2B674E02BDBA213001DD60B /* MQTTSSLSecurityPolicyDecoder.m */,
+				E2B674E72BDBA213001DD60B /* MQTTSSLSecurityPolicyEncoder.h */,
+				E2B674DB2BDBA212001DD60B /* MQTTSSLSecurityPolicyEncoder.m */,
+				E2B674BF2BDBA212001DD60B /* MQTTSSLSecurityPolicyTransport.h */,
+				E2B674D12BDBA212001DD60B /* MQTTSSLSecurityPolicyTransport.m */,
+				E2B674C62BDBA212001DD60B /* MQTTStrict.h */,
+				E2B674D82BDBA212001DD60B /* MQTTStrict.m */,
+				E2B674E92BDBA213001DD60B /* MQTTTransport.h */,
+				E2B674F02BDBA213001DD60B /* MQTTTransport.m */,
+				E2B674C02BDBA212001DD60B /* MQTTWebsocketTransport.h */,
+				E2B674DA2BDBA212001DD60B /* MQTTWebsocketTransport.m */,
+				E2B674C82BDBA212001DD60B /* ReconnectTimer.h */,
+				E2B674EA2BDBA213001DD60B /* ReconnectTimer.m */,
+				E2B674C42BDBA212001DD60B /* SocketRocket.h */,
+				E2B674D72BDBA212001DD60B /* SRWebSocket.h */,
+				E2B674CD2BDBA212001DD60B /* SRWebSocket.m */,
+			);
+			path = MQTTClient;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E20F88392BDB942E00D52AF3 /* MarsClient */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20F88632BDB942F00D52AF3 /* Build configuration list for PBXNativeTarget "MarsClient" */;
+			buildPhases = (
+				E20F88372BDB942E00D52AF3 /* Frameworks */,
+				E20F88382BDB942E00D52AF3 /* Resources */,
+				E2B675252BDBA24D001DD60B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MarsClient;
+			productName = MarsClient;
+			productReference = E20F883A2BDB942E00D52AF3 /* MarsClient.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E20F884E2BDB942F00D52AF3 /* MarsClientTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20F88662BDB942F00D52AF3 /* Build configuration list for PBXNativeTarget "MarsClientTests" */;
+			buildPhases = (
+				E20F884B2BDB942F00D52AF3 /* Sources */,
+				E20F884C2BDB942F00D52AF3 /* Frameworks */,
+				E20F884D2BDB942F00D52AF3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E20F88512BDB942F00D52AF3 /* PBXTargetDependency */,
+			);
+			name = MarsClientTests;
+			productName = MarsClientTests;
+			productReference = E20F884F2BDB942F00D52AF3 /* MarsClientTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E20F88582BDB942F00D52AF3 /* MarsClientUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20F88692BDB942F00D52AF3 /* Build configuration list for PBXNativeTarget "MarsClientUITests" */;
+			buildPhases = (
+				E20F88552BDB942F00D52AF3 /* Sources */,
+				E20F88562BDB942F00D52AF3 /* Frameworks */,
+				E20F88572BDB942F00D52AF3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E20F885B2BDB942F00D52AF3 /* PBXTargetDependency */,
+			);
+			name = MarsClientUITests;
+			productName = MarsClientUITests;
+			productReference = E20F88592BDB942F00D52AF3 /* MarsClientUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E20F88322BDB942E00D52AF3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1530;
+				TargetAttributes = {
+					E20F88392BDB942E00D52AF3 = {
+						CreatedOnToolsVersion = 15.3;
+					};
+					E20F884E2BDB942F00D52AF3 = {
+						CreatedOnToolsVersion = 15.3;
+						TestTargetID = E20F88392BDB942E00D52AF3;
+					};
+					E20F88582BDB942F00D52AF3 = {
+						CreatedOnToolsVersion = 15.3;
+						TestTargetID = E20F88392BDB942E00D52AF3;
+					};
+				};
+			};
+			buildConfigurationList = E20F88352BDB942E00D52AF3 /* Build configuration list for PBXProject "MarsClient" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = E20F88312BDB942E00D52AF3;
+			productRefGroup = E20F883B2BDB942E00D52AF3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E20F88392BDB942E00D52AF3 /* MarsClient */,
+				E20F884E2BDB942F00D52AF3 /* MarsClientTests */,
+				E20F88582BDB942F00D52AF3 /* MarsClientUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E20F88382BDB942E00D52AF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E20F88442BDB942F00D52AF3 /* Assets.xcassets in Resources */,
+				E2B6745D2BDBA02E001DD60B /* MQTTClient in Resources */,
+				E20F88472BDB942F00D52AF3 /* Base in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E20F884D2BDB942F00D52AF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E20F88572BDB942F00D52AF3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E20F884B2BDB942F00D52AF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E20F88542BDB942F00D52AF3 /* MarsClientTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E20F88552BDB942F00D52AF3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E20F88602BDB942F00D52AF3 /* MarsClientUITestsLaunchTests.m in Sources */,
+				E20F885E2BDB942F00D52AF3 /* MarsClientUITests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2B675252BDBA24D001DD60B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E2B6752B2BDBA280001DD60B /* ForegroundReconnection.m in Sources */,
+				E2B6752C2BDBA280001DD60B /* GCDTimer.m in Sources */,
+				E2B6752D2BDBA280001DD60B /* MQTTCFSocketDecoder.m in Sources */,
+				E2B6752E2BDBA280001DD60B /* MQTTCFSocketEncoder.m in Sources */,
+				E2B6752F2BDBA280001DD60B /* MQTTCFSocketTransport.m in Sources */,
+				E2B675302BDBA280001DD60B /* MQTTCoreDataPersistence.m in Sources */,
+				E2B675312BDBA280001DD60B /* MQTTDecoder.m in Sources */,
+				E2B675322BDBA280001DD60B /* MQTTInMemoryPersistence.m in Sources */,
+				E2B675332BDBA280001DD60B /* MQTTLog.m in Sources */,
+				E2B675342BDBA280001DD60B /* MQTTMessage.m in Sources */,
+				E2B675352BDBA280001DD60B /* MQTTProperties.m in Sources */,
+				E2B675362BDBA280001DD60B /* MQTTSession.m in Sources */,
+				E2B675372BDBA280001DD60B /* MQTTSessionLegacy.m in Sources */,
+				E2B675382BDBA280001DD60B /* MQTTSessionManager.m in Sources */,
+				E2B675392BDBA280001DD60B /* MQTTSessionSynchron.m in Sources */,
+				E2B6753A2BDBA280001DD60B /* MQTTSSLSecurityPolicy.m in Sources */,
+				E2B6753B2BDBA280001DD60B /* MQTTSSLSecurityPolicyDecoder.m in Sources */,
+				E2B6753C2BDBA280001DD60B /* MQTTSSLSecurityPolicyEncoder.m in Sources */,
+				E2B6753D2BDBA280001DD60B /* MQTTSSLSecurityPolicyTransport.m in Sources */,
+				E2B6753E2BDBA280001DD60B /* MQTTStrict.m in Sources */,
+				E2B6753F2BDBA280001DD60B /* MQTTTransport.m in Sources */,
+				E2B675402BDBA280001DD60B /* MQTTWebsocketTransport.m in Sources */,
+				E2B675412BDBA280001DD60B /* ReconnectTimer.m in Sources */,
+				E2B675422BDBA280001DD60B /* SRWebSocket.m in Sources */,
+				E2B675262BDBA268001DD60B /* MarsClient.m in Sources */,
+				E2B675272BDBA268001DD60B /* MarsMQTT.m in Sources */,
+				E2B675282BDBA268001DD60B /* AppDelegate.m in Sources */,
+				E2B675292BDBA268001DD60B /* ViewController.m in Sources */,
+				E2B6752A2BDBA268001DD60B /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E20F88512BDB942F00D52AF3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E20F88392BDB942E00D52AF3 /* MarsClient */;
+			targetProxy = E20F88502BDB942F00D52AF3 /* PBXContainerItemProxy */;
+		};
+		E20F885B2BDB942F00D52AF3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E20F88392BDB942E00D52AF3 /* MarsClient */;
+			targetProxy = E20F885A2BDB942F00D52AF3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		E20F88452BDB942F00D52AF3 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				E20F88462BDB942F00D52AF3 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		E20F88612BDB942F00D52AF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		E20F88622BDB942F00D52AF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		E20F88642BDB942F00D52AF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MarsClient/MarsClient.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QB2QM35YM;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				NEW_SETTING = "";
+				PRODUCT_BUNDLE_IDENTIFIER = Mars.MarsClient;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		E20F88652BDB942F00D52AF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MarsClient/MarsClient.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QB2QM35YM;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				NEW_SETTING = "";
+				PRODUCT_BUNDLE_IDENTIFIER = Mars.MarsClient;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		E20F88672BDB942F00D52AF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QB2QM35YM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mars.MarsClientTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MarsClient.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MarsClient";
+			};
+			name = Debug;
+		};
+		E20F88682BDB942F00D52AF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QB2QM35YM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mars.MarsClientTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MarsClient.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MarsClient";
+			};
+			name = Release;
+		};
+		E20F886A2BDB942F00D52AF3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QB2QM35YM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mars.MarsClientUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_TARGET_NAME = MarsClient;
+			};
+			name = Debug;
+		};
+		E20F886B2BDB942F00D52AF3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8QB2QM35YM;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Mars.MarsClientUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_TARGET_NAME = MarsClient;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		E20F88352BDB942E00D52AF3 /* Build configuration list for PBXProject "MarsClient" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E20F88612BDB942F00D52AF3 /* Debug */,
+				E20F88622BDB942F00D52AF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20F88632BDB942F00D52AF3 /* Build configuration list for PBXNativeTarget "MarsClient" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E20F88642BDB942F00D52AF3 /* Debug */,
+				E20F88652BDB942F00D52AF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20F88662BDB942F00D52AF3 /* Build configuration list for PBXNativeTarget "MarsClientTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E20F88672BDB942F00D52AF3 /* Debug */,
+				E20F88682BDB942F00D52AF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20F88692BDB942F00D52AF3 /* Build configuration list for PBXNativeTarget "MarsClientUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E20F886A2BDB942F00D52AF3 /* Debug */,
+				E20F886B2BDB942F00D52AF3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E20F88322BDB942E00D52AF3 /* Project object */;
+}
