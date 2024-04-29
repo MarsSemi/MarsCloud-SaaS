@@ -29,12 +29,11 @@
   </tr>
 </table>
 
-## 編譯過程
+## 外部引用
 
-若使用命令列編譯，指令為
-```
-clang -fobjc-arc main.m
-```
+本程式範例所使用的 MQTTClient 來自於 [MQTT-Client-Framework](https://github.com/novastone-media/MQTT-Client-Framework)，
+並遵循該套件的授權規則。若有進行修改與延伸使用，
+請依照該套件之規定為主。
   
 ## 注意事項
 
