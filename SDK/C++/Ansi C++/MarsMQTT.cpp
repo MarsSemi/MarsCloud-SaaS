@@ -63,7 +63,7 @@ MarsMQTT::~MarsMQTT()
 {
 	try
 	{
-		//MQTTAsync_destroy(&_MQTTClient);
+		MQTTClient_destroy(&_MQTTClient);
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }	
 }
