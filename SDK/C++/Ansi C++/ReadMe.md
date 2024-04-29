@@ -38,11 +38,19 @@
   </tr>
 </table>
 
+## 外部參考函式庫
+
+本範例程式使用了 [paho.mqtt.c](https://github.com/eclipse/paho.mqtt.c/tree/master) 來完成 MQTT 的訂閱部分。  
+並遵守該函式庫之授權條款。請使用者以該網站發佈之規範為主。  
+
+編譯本程式時，需要用到該函式庫的已編譯之 binary library files.  
+請自行至[這裡](https://github.com/eclipse/paho.mqtt.c/releases)下載所需的版本，以確保能夠正確編譯。
+
 ## 編譯過程
 
 編譯指令為
 ```
-gcc main.cpp -o test -lcurl -lstdc++
+gcc -I./MQTTClient/include -L./MQTTClient/lib main.cpp MarsClient.cpp MarsMQTT.cpp -o test -lcurl -lstdc++ -lpthread -lpaho-mqtt3cs
 ```
 
 其中需要注意的是，C++ 版本的 SDK 會使用到 CURL  
