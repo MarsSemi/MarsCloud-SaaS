@@ -50,8 +50,8 @@ def TestMQTT():
         if _MQTT.Connect(_Host, 8884, _Client.User, _Client.Token, MQTTCallback):
             print("MQTT Connect OK !")
 
-            _MQTT.Subscribe("+/#")
-            _Client.PushMessage('my/test/msg', { "test": 12345 })
+            _MQTT.Subscribe("test/+/#")
+            _Client.PushMessage('test/my/msg', { "test": 12345 })
     except:
         return
 #--------------------------------------------------------------
