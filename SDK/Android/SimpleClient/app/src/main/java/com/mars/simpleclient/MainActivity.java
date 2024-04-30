@@ -37,6 +37,8 @@ public class MainActivity extends AppCompatActivity
     private AppBarConfiguration appBarConfiguration;
     private ActivityMainBinding binding;
     private MarsClient _Client = null;
+    private String _Account = "test";
+    private String _Password = "test";
     public static Timer _InitTimer = new Timer();
     //------------------------------------------------------------
     @Override
@@ -122,7 +124,7 @@ public class MainActivity extends AppCompatActivity
             {
                 if(_Client.IsConnected())
                 {
-                    _Client.MQTTSubscribe("+/#");
+                    _Client.MQTTSubscribe(_Account+"/+/#");
                     _Client.AddMQTTCallback(new MqttCallback()
                     {
                         public void connectionLost(Throwable cause){}
@@ -147,7 +149,7 @@ public class MainActivity extends AppCompatActivity
     {
         try
         {
-            _Client = new MarsClient("test", "test", "justtest");
+            _Client = new MarsClient(_Account, _Password, "justtest");
             _Client.SetCloudServerURL("https://test.mars-cloud.com");
             _Client.Start(_LoginCallBack);
         }
@@ -166,8 +168,7 @@ public class MainActivity extends AppCompatActivity
             _data.put("humi", 80);
 
             _Client.PutData("dev", "test", _data);
-            _Client.GetLastData("dev", "test", 1, new
-                    AbstractObject.IStringDataCallback()
+            _Client.GetLastData("dev", "test", 1, new AbstractObject.IStringDataCallback()
             {
                 public void OnData(String _payload)
                 {
@@ -175,8 +176,7 @@ public class MainActivity extends AppCompatActivity
                 }
             });
 
-            _Client.PutEvent("dev", "event", _data);
-            _Client.PutMessage("msg/my/test", _data);
+            _Client.PutMessage("test/my/msg", _data);
         }
         catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); };
     }

@@ -254,7 +254,7 @@ public class MarsClient
                 _options.setKeepAliveInterval(_DefaultConnectTimeOut);
                 _options.setCleanSession(true);
 
-                _MQTTClient = new MqttClient(_MarsCloudMQTTURL, _AuthToken + '@'+new Date().getTime()%1000, new MemoryPersistence());
+                _MQTTClient = new MqttClient(_MarsCloudMQTTURL, _Account + '@'+new Date().getTime()%1000, new MemoryPersistence());
                 _MQTTClient.setCallback(_MQTTCallback);
                 _MQTTClient.connect(_options);
 
@@ -273,9 +273,7 @@ public class MarsClient
         {
             if(_MQTTClient != null && _MQTTClient.isConnected())
             {
-                String _id = _Project.length() > 0 ? _Project : _Account;
-
-                _topic = _topic.isEmpty() ? _id + "+/#" : _topic;
+                _topic = _topic.isEmpty() ? _Account + "+/#" : _topic;
                 _MQTTClient.subscribe(_topic);
 
                 Tools.Log.Print(Tools.LogLevel.ll_Info, "MQTT subscribe SUCCESS : "+_topic);
