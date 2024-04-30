@@ -52,7 +52,7 @@ MarsMQTT::MarsMQTT(MarsClient *_client)
 		_LostCallback = NULL;
 		_RecvCallback = NULL;
 
-		sprintf(_id, "%s@%d", _MarsClient->GetToken(), rand()%10000);	
+		sprintf(_id, "%s@%d", _MarsClient->GetAccount(), rand()%10000);	
 
 		MQTTClient_createWithOptions(&_MQTTClient, "wss://test.mars-cloud.com:8884", _id, MQTTCLIENT_PERSISTENCE_NONE, NULL, &_createOpts);
 	}
@@ -104,19 +104,8 @@ bool MarsMQTT::Receive(void)
 {
 	try
 	{
-		if(_MQTTClient != NULL)
-		{
-			char *_topic = NULL;
-			int _len = 0;
-			MQTTClient_message* _msg = NULL;
-			
-			if(MQTTClient_receive(_MQTTClient, &_topic, &_len, &_msg, 1) == MQTTCLIENT_SUCCESS)
-			{
-				MQTTClient_freeMessage(&_msg);
-				MQTTClient_free(_topic);
-				return true;
-			}
-		}
+		if(MQTTClient_disconnect(_MQTTClient, _DefaultAcceptTimeOut_MSec) == MQTTCLIENT_SUCCESS)
+			return true;
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }	
 	return false;

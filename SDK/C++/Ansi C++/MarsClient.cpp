@@ -83,8 +83,8 @@ bool MarsClient::HttpGET(char *_respone, const char *_url, const char *_token)
 		//curl_easy_setopt(_curl, CURLOPT_VERBOSE, 1);
 		curl_easy_setopt(_curl, CURLOPT_FAILONERROR, 1);
 		curl_easy_setopt(_curl, CURLOPT_URL, _url);
-		curl_easy_setopt(_curl, CURLOPT_TIMEOUT, _DefaultTimeOut);
-		curl_easy_setopt(_curl, CURLOPT_ACCEPTTIMEOUT_MS, _DefaultAcceptTimeOut);
+		curl_easy_setopt(_curl, CURLOPT_TIMEOUT, _DefaultTimeOut_Sec);
+		curl_easy_setopt(_curl, CURLOPT_ACCEPTTIMEOUT_MS, _DefaultAcceptTimeOut_MSec);
 		curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, HttpWriteBack);
 		curl_easy_setopt(_curl, CURLOPT_WRITEDATA, _respone);
 		
@@ -120,8 +120,8 @@ bool MarsClient::HttpPost(char *_respone, const char *_url, const char *_payload
 		curl_easy_setopt(_curl, CURLOPT_POST, 1);	
 		curl_easy_setopt(_curl, CURLOPT_FAILONERROR, 1);
 		curl_easy_setopt(_curl, CURLOPT_URL, _url);
-		curl_easy_setopt(_curl, CURLOPT_TIMEOUT, _DefaultTimeOut);	
-		curl_easy_setopt(_curl, CURLOPT_ACCEPTTIMEOUT_MS, _DefaultAcceptTimeOut);
+		curl_easy_setopt(_curl, CURLOPT_TIMEOUT, _DefaultTimeOut_Sec);	
+		curl_easy_setopt(_curl, CURLOPT_ACCEPTTIMEOUT_MS, _DefaultAcceptTimeOut_MSec);
 		curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION, HttpWriteBack);
 		curl_easy_setopt(_curl, CURLOPT_WRITEDATA, _respone);		
 		curl_easy_setopt(_curl, CURLOPT_READFUNCTION, HttpReadBack);
@@ -186,6 +186,17 @@ bool MarsClient::HttpPostData(char *_respone, const char *_request, const char *
 	}
 	catch(...){ printf("Func Exception : %s\n", __func__); }
 	return false;
+}
+//--------------------------------------------------------------
+char *MarsClient::GetAccount(void)
+{
+	try
+	{
+		if(strlen(_Account) > 0)
+			return _Account;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return NULL;
 }
 //--------------------------------------------------------------
 char *MarsClient::GetToken(void)

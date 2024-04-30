@@ -32,8 +32,8 @@ size_t HttpReadBack(void *_dest, size_t _size, size_t _nmemb, void *_dataPtr);
 class MarsClient
 {
 private:
-	const static int _DefaultTimeOut = 30; //sec
-	const static int _DefaultAcceptTimeOut = 5000; //msec
+	const static int _DefaultTimeOut_Sec = 30; //sec
+	const static int _DefaultAcceptTimeOut_MSec = 5000; //msec
 private:
 	char _Account[128];
 	char _Password[24];
@@ -47,7 +47,8 @@ private:
 	bool HttpGetData(char *_result, const char *_request);
 	bool HttpPostData(char *_result, const char *_request, const char *_payload);
 public:
-	char *GetToken(void);
+	char *GetAccount(void);
+	char *GetToken(void);	
 public:
 	MarsClient(const char *_account, const char *_password, const char *_proj);
 	~MarsClient();
