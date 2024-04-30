@@ -29,9 +29,6 @@ def TestAPIs():
             _resp = _Client.PutData("dev", "test", { "temp": 23.5, "humi": 87 })
             print("PutData : "+str(_resp))
 
-            _resp = _Client.PutEvent("dev", "test", { "temp": 23.5, "humi": 87 })
-            print("PutData : "+str(_resp))
-
             _resp = json.loads(_Client.GetLastData("dev", "test", 1));
             _resp = _resp['results'][0]        
             print("Get Last Data : "+str(_resp))
@@ -50,7 +47,7 @@ def TestMQTT():
         if _MQTT.Connect(_Host, 8884, _Client.User, _Client.Token, MQTTCallback):
             print("MQTT Connect OK !")
 
-            _MQTT.Subscribe("test/+/#")
+            _MQTT.Subscribe("justtest/+/#")
             _Client.PushMessage('test/my/msg', { "test": 12345 })
     except:
         return

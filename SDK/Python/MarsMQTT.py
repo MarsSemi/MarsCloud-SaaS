@@ -31,7 +31,7 @@ class MarsMQTT:
     def Connect(_self, _host, _port, _user, _token, _msgCallback): 
         try:
             _tick = 0
-            _client = mqtt_client.Client(client_id = _token+'@'+str(random.randint(1000, 2000)), transport = "websockets", protocol = mqtt_client.MQTTv311)
+            _client = mqtt_client.Client(client_id = _user+'@'+str(random.randint(1000, 2000)), transport = "websockets", protocol = mqtt_client.MQTTv311)
 
             _self.Host = _host
             _self.Port = _port
