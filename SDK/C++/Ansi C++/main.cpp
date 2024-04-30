@@ -38,8 +38,7 @@ int main(void)
 		printf("Login SUCCESS\n");
 		printf("---\n");
 
-		if(_mqtt.SetCallback(&LostMQTTCallback, &ReceiveMQTTCallback)) printf("MQTT SetCallback SUCCESS\n");
-		if(_mqtt.Connect()) printf("MQTT Connect SUCCESS\n");		
+		if(_mqtt.Connect(&LostMQTTCallback, &ReceiveMQTTCallback)) printf("MQTT Connect SUCCESS\n");		
 		if(_mqtt.Subscribe("test/+/#")) printf("MQTT Subscribe SUCCESS\n");	
 
 		printf("---\n");

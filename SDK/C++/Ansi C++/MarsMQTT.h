@@ -32,15 +32,16 @@ public:
 	fConnectLostMQTTCallback _LostCallback;
 	fRecevieMsgMQTTCallback _RecvCallback;
 private:
+	void ResetClient(void);
+	int IndexOf(const char *_str, char _c);
 public:
 	MarsMQTT(MarsClient *_client);
 	~MarsMQTT();
 
-	bool Connect(void);
+	bool Connect(fConnectLostMQTTCallback _lostHandler, fRecevieMsgMQTTCallback _recvHandler);
 	bool Disconnect(void);
 	bool Receive(void);
 	bool Subscribe(const char *_topic);
-	bool SetCallback(fConnectLostMQTTCallback _lostHandler, fRecevieMsgMQTTCallback _recvHandler);
 };
 //--------------------------------------------------------------
 #endif

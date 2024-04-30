@@ -47,8 +47,9 @@ private:
 	bool HttpGetData(char *_result, const char *_request);
 	bool HttpPostData(char *_result, const char *_request, const char *_payload);
 public:
-	char *GetAccount(void);
-	char *GetToken(void);	
+	const char *GetHost(void);
+	const char *GetAccount(void);
+	const char *GetToken(void);	
 public:
 	MarsClient(const char *_account, const char *_password, const char *_proj);
 	~MarsClient();

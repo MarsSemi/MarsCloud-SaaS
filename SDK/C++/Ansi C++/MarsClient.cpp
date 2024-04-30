@@ -188,7 +188,18 @@ bool MarsClient::HttpPostData(char *_respone, const char *_request, const char *
 	return false;
 }
 //--------------------------------------------------------------
-char *MarsClient::GetAccount(void)
+const char *MarsClient::GetHost(void)
+{
+	try
+	{
+		if(strlen(_Host) > 0)
+			return _Host;
+	}
+	catch(...){ printf("Func Exception : %s\n", __func__); }
+	return NULL;
+}
+//--------------------------------------------------------------
+const char *MarsClient::GetAccount(void)
 {
 	try
 	{
@@ -199,7 +210,7 @@ char *MarsClient::GetAccount(void)
 	return NULL;
 }
 //--------------------------------------------------------------
-char *MarsClient::GetToken(void)
+const char *MarsClient::GetToken(void)
 {
 	try
 	{
@@ -215,15 +226,18 @@ bool MarsClient::DoLogin(const char *_host)
 	try
 	{	
 		char _req[1024];
-		sprintf(_req, "%s/auth/login?usr=%s&pwd=%s&proj=%s", _host, _Account, _Password, _Proj);
+		char _info[256] = { '\0' };
+
+		sprintf(_info, "{ \"usr\":\"%s\", \"pwd\":\"%s\", \"proj\":\"%s\" }", _Account, _Password, _Proj);
+		sprintf(_req, "%s/auth/login?", _host);
 
 		bool _status = false;
 
-		if(HttpGET(_Token, _req, NULL))
+		if(HttpPostData(_Token, _req, _info))
 		{
 			strcpy(_Host, _host);
 
-			_Token[512] = '\0';
+			_Token[512] = EOF;
 			_status = true;
 		}
 
