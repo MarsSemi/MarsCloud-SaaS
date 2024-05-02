@@ -57,11 +57,13 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(409, 246);
+            this.ClientSize = new System.Drawing.Size(421, 264);
             this.Controls.Add(this.btn_Test);
             this.Controls.Add(this.btn_Connect);
             this.Name = "MainForm";
             this.Text = "Form1";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainForm_FormClosed);
+            this.Leave += new System.EventHandler(this.MainForm_Leave);
             this.ResumeLayout(false);
 
         }

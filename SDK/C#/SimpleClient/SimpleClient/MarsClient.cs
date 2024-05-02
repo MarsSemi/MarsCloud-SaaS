@@ -83,6 +83,18 @@ public class MarsClient
         return false;
     }
     //-----------------------------------------------------------------------
+    public bool PutMessage(String _topic, String _msg)
+    {
+        try
+        {
+            String _resp = HttpPost(_Host + "/api/put?message&topic="+ _topic, _msg);
+            if (_resp != null)
+                return true;
+        }
+        catch (Exception _e) { Console.WriteLine(_e.ToString()); }
+        return false;
+    }
+    //-----------------------------------------------------------------------
     public bool RegDevice(String _uuid, String _suid, String _profile, String _name, String _vender)
     {
         try
