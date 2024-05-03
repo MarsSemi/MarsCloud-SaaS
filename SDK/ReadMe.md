@@ -24,7 +24,7 @@
 注意一下，可以避免一些誤區，亦可大幅地提升整體的執行效率，以  
 下就是一些常見的問題：  
 
-#### 資料的 UKey 是什麼意思
+- **資料的 UKey 是什麼意思**
 
 以下是最基礎的資料上傳方式，這時資料沒有特別指定 ukey。也  
 就是說，這筆資料屬於流水帳，就是一直持續會丟到資料庫裡面儲存  
@@ -60,7 +60,7 @@ let _payload = { uuid: _uuid, suid: _suid, values: [_data] };
 HttpPost("https://test.mars-cloud.com/api/put?data", _payload);
 ```
 
-#### 提升儲存大量資料的效率
+- **提升儲存大量資料的效率**
 
 一般來說，儲存資料的方式大致上如上述的方式，但範例都是一筆一筆  
 存入的。如果一次要存入上百筆、甚至是上萬筆資料時，如果採用單筆  
@@ -72,7 +72,6 @@ let _largetData = [{ ... }, { ... }, { ... }, ..., { ... }];
 let _payload = { uuid: _uuid, suid: _suid, values: _largetData };
 
 HttpPost("https://test.mars-cloud.com/api/put?data", _payload);
-
 ```
 
 使用以上方式，會省去多次呼叫 API 的傳輸建立時間，於是就可快速、大  
