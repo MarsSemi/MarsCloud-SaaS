@@ -30,7 +30,7 @@
 注意一下，可以避免一些誤區，亦可大幅地提升整體的執行效率，以  
 下就是一些常見的問題：  
 
-#### 資料的 UKey 是什麼意思
+### 資料的 UKey 是什麼意思
 
 以下是最基礎的資料上傳方式，這時資料沒有特別指定 ukey。也  
 就是說，這筆資料屬於流水帳，就是一直持續會丟到資料庫裡面儲存  
@@ -60,17 +60,46 @@ HttpPost("https://test.mars-cloud.com/api/put?data", _payload);
 像是與帳號、設備綁定的相關資料，或是ERP、交易記錄的單號等。  
 
 ```
-let _data = { ukey: _transaction_number, transaction_time: ????, transaction_result: ????,  };  
+let _data = { ukey: _transaction_number, transaction_time: ????, transaction_result: ????, ... };  
 let _payload = { uuid: _uuid, suid: _suid, values: [_data] };
 
 HttpPost("https://test.mars-cloud.com/api/put?data", _payload);
 ```
 
-#### 提升儲存大量資料的效率
+### 如何儲存 binary 資料
+
+本雲端系統的資料儲存方式，為基於 JSON 格式的文字基礎。因此，  
+若要儲存 binary 格式的資料時，需透過 BASE64 轉換，確保資料  
+轉換為無特殊字元之字串，再儲存至系統之中。但此方式不適合大量、  
+或是單筆大容量之資料儲存（如：影片）。
+
+```
+let _byteData = [ 0xFE, 0xAD, 0x9C, ....];
+let _data = { my_byte_data: Base64Encode(_byteData).toString() };
+let _payload = { uuid: _uuid, suid: _suid, values: [_data] };
+
+HttpPost("https://test.mars-cloud.com/api/put?data", _payload);
+```
+  
+如若需要大量或是單筆大容量的 binary 資料儲存，建議在自行撰寫  
+的服務中，回傳網路位置，然後只儲存該 url 至系統之中：
+
+```
+let _byteData = [ 0xFE, 0xAD, 0x9C, ....];
+let _data_url = HttpPost("https://test.mars-cloud.com/services/my.service/api/save_my_binary_data", Base64Encode(_byteData).toString());
+
+let _data = { my_byte_data: _data_url };
+let _payload = { uuid: _uuid, suid: _suid, values: [_data] };
+
+HttpPost("https://test.mars-cloud.com/api/put?data", _payload);
+```
+  
+
+### 提升儲存大量資料的效率
 
 一般來說，儲存資料的方式大致上如上述的方式，但範例都是一筆一筆  
 存入的。如果一次要存入上百筆、甚至是上萬筆資料時，如果採用單筆  
-上傳，會讓效率變得極低。因此，會建議使用一次多比傳輸的方式，大  
+上傳，會讓效率變得極低。因此，會建議使用一次多筆傳輸的方式，大  
 致上的概念如下：  
   
 ```
