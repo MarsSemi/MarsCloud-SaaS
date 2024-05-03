@@ -15,7 +15,7 @@ public:
   MarsClient(String _ip, int _port);
   
   bool IsLogin();
-  bool Login(String _user, String _pwd_or_key);
+  bool Login(String _user, String _pwd_or_key, String _pro);
   bool RegDevice(String _uuid, String _suid, String _profile);
   bool PutData(String _uuid, String _suid, JsonArray _data);
 };
@@ -119,9 +119,9 @@ String MarsClient::HttpPost(String _url, String _payload)
   return "";
 }
 //--------------------------------------------------------------
-bool MarsClient::Login(String _user, String _pwd_or_key)
+bool MarsClient::Login(String _user, String _pwd_or_key, String _proj)
 {
-  _Token = HttpGet("/auth/login?usr="+_user+"&pwd="+_pwd_or_key);   
+  _Token = HttpGet("/auth/login?usr="+_user+"&pwd="+_pwd_or_key+"&proj="+_proj);   
   
   if(IsLogin())
   { 
