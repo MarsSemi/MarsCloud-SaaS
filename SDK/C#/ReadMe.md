@@ -24,14 +24,10 @@
   </tr>
 </table>
   
-其中會使用 **Newtonsoft.Json** 來解析 JSON 物件，該物件  
-可在以下的連結下載後使用：
+本範例會使用以下兩個套件，皆可以在 NuGet 中取得。NuGet 的  
+套件使用方法，請參照 [這裡](https://learn.microsoft.com/zh-tw/nuget/quickstart/install-and-use-a-package-in-visual-studio)：
 
-[官網](https://www.newtonsoft.com/json) or [GitHub](https://www.newtonsoft.com/json)  
+- **EATools.M2Mqtt.Standard.1.0.0**
+- **Newtonsoft.Json.13.0.3**
 
-**Newtonsoft.Json** 下載後，記得在確認兩件事情  
-
-- **確認對應正確的 .NET 版本**
-- **確認專案有加入該 Newtonsoft.Json.dll 的參考**
-
-接著便可正常編譯與執行
+下載本專案後，再進行套件安裝，接著便可正常編譯與執行。
