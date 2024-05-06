@@ -21,10 +21,7 @@ class MiDevice:
         self.bleClient = None
         
         self.FilePath = 'dev.txt'
-        self.GET_TEMP_AND_HUMIDITY_ATTRIBUTE_UUID = 'EBE0CCC1-7A0A-4B0C-8A1A-6FF2997DA3A6'
-        self.GET_LAST_CALC_DATA_ATTRIBUTE_UUID = 'EBE0CCBB-7A0A-4B0C-8A1A-6FF2997DA3A6'
-        self.GET_LAST_CALC_AND_NEXT_IDX_ATTRIBUTE_UUID = 'EBE0CCB9-7A0A-4B0C-8A1A-6FF2997DA3A6'
-        self.GET_BATTERY_ATTRIBUTE_UUID = 'EBE0CCBC-7A0A-4B0C-8A1A-6FF2997DA3A6'
+        self.GET_DATA_UUID = 'EBE0CCC1-7A0A-4B0C-8A1A-6FF2997DA3A6'
     #--------------------------------------------------------------
     def SaveDev(self, _devID): 
         try:
@@ -116,7 +113,7 @@ class MiDevice:
         try:
 
             if self.IsConnected():
-                _byteArray = await self.bleClient.read_gatt_char(self.GET_TEMP_AND_HUMIDITY_ATTRIBUTE_UUID)
+                _byteArray = await self.bleClient.read_gatt_char(self.GET_DATA_UUID)
                 #print(_byteArray.hex())
 
                 if _byteArray != None and len(_byteArray) >= 5 :
