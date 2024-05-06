@@ -11,7 +11,7 @@ void setup()
   Serial.println("--- System Start ---");
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin("mars3_2.4G", "57525670");
+  WiFi.begin("????", "????");
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -38,7 +38,7 @@ void setup()
     if(_Client->Login("test", "test", "justtest"))
     {
       Serial.println(F("[Mars] Login SUCCESS"));  
-      
+
       StaticJsonDocument<512> _item;
       JsonArray _array;
 
