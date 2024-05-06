@@ -5,6 +5,10 @@ import json
 #--------------------------------------------------------------
 class MarsClient:
 #--------------------------------------------------------------
+    def __init__(self):
+
+        self.Token = None
+#--------------------------------------------------------------
     def HttpRequest(_self, _req, _payload):
         try:
             _headers = { "Content-Type": "application/json", "Cache-Control": "no-cache" }
