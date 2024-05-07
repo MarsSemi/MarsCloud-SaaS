@@ -44,18 +44,18 @@ String MarsClient::HttpGet(String _url)
         
     _client.print(F("\r\n"));
             
-    for(int i=0;i<5000;i++)
+    for(int i=0;i<15000;i++)
     {      
       delay(1);
       if(_client.available())
         _resp += _client.readString();
-    }
 
-    if(_resp.indexOf(F("200 OK")) == 9)
-    {   
-      int _startIndex = _resp.indexOf(F("\r\n\r\n")); 
-      if(_startIndex >= 0)                              
-        return _resp.substring(_startIndex+4);   
+      if(_resp.indexOf(F("200 OK")) == 9)
+      {   
+        int _startIndex = _resp.indexOf(F("\r\n\r\n")); 
+        if(_startIndex >= 0)                              
+          return _resp.substring(_startIndex+4);   
+      }
     }
   }
 
@@ -86,18 +86,18 @@ String MarsClient::HttpPost(String _url, String _payload)
     _client.print(F("\r\n"));
     _client.print(_payload);
                       
-    for(int i=0;i<5000;i++)
+    for(int i=0;i<15000;i++)
     {      
       delay(1);
       if(_client.available())
         _resp += _client.readString();
-    }
 
-    if(_resp.indexOf(F("200 OK")) == 9)
-    {   
-      int _startIndex = _resp.indexOf(F("\r\n\r\n")); 
-      if(_startIndex >= 0)                              
-        return _resp.substring(_startIndex+4);   
+      if(_resp.indexOf(F("200 OK")) == 9)
+      {   
+        int _startIndex = _resp.indexOf(F("\r\n\r\n")); 
+        if(_startIndex >= 0)                              
+          return _resp.substring(_startIndex+4);   
+      }
     }
   }
 
@@ -119,7 +119,7 @@ bool MarsClient::Login(String _user, String _pwd_or_key, String _proj)
 //--------------------------------------------------------------
 bool MarsClient::IsLogin()
 {
-  if(_Token != NULL && _Token.length() > 128)
+  if(_Token != NULL && _Token.length() >= 128)
     return true;
     
   return false;
@@ -157,8 +157,9 @@ bool MarsClient::PutData(String _uuid, String _suid, JsonArray _data)
   _doc["values"] = _data;      
     
   serializeJson(_doc, _json);
+
   String _resp = HttpPost(F("/api/put?data"), _json);
-                          
+
   if(_resp.length() > 0)   
     return true;
   
