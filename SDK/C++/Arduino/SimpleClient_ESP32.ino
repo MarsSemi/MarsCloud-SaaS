@@ -176,9 +176,9 @@ void setup()
   try
   {
     initENV();
-    connetBLEDevice();
     resetWiFi();
     loginSystem();
+    connetBLEDevice();
   }
   catch(...){}
 }
