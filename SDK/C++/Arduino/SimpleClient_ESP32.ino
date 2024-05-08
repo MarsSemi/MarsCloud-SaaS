@@ -6,6 +6,8 @@
 //--------------------------------------------------------------
 //
 //--------------------------------------------------------------
+#define LED 13
+//--------------------------------------------------------------
 SET_LOOP_TASK_STACK_SIZE(12*1024); // Very important! Without this, ble get service might crash
 //--------------------------------------------------------------
 BLEAddress _BleTargetAddr("");
@@ -24,7 +26,9 @@ class BLEClientCallback : public BLEClientCallbacks
 //--------------------------------------------------------------
 MarsClient *_Client = NULL;
 
-int _LoopTick = 0;
+unsigned long _LoopTick = 0;
+unsigned char _ErrorTick = 0;
+
 float _Tempture = 0;
 float _Humidity = 0;
 float _Battery = 0;
@@ -34,11 +38,39 @@ void initENV()
   try
   {
     delay(1000);
+    pinMode(LED, OUTPUT);
 
     Serial.begin(115200);
     Serial.println("--- System Start ---");
-
-    uploadData(0, 0, 0);
+  }
+  catch(...){}
+}
+//--------------------------------------------------------------
+void turnOnLED()
+{
+  try
+  {
+    digitalWrite(LED, HIGH);
+  }
+  catch(...){}
+}
+//--------------------------------------------------------------
+void turnOffLED()
+{
+  try
+  {
+    digitalWrite(LED, LOW);
+  }
+  catch(...){}
+}
+//--------------------------------------------------------------
+void blinkLED(int _interval)
+{
+  try
+  {
+    turnOnLED();
+    delay(_interval);
+    turnOffLED();
   }
   catch(...){}
 }
@@ -52,7 +84,7 @@ void resetWiFi()
     int _tick = 0;
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin("wifi_2.4G", "12345678");
+    WiFi.begin("mars3_2.4G", "57525670");
 
     while (WiFi.status() != WL_CONNECTED)
     {
@@ -164,8 +196,17 @@ void uploadData(float _temp, float _humi, float _battery)
     _doc["battery"] = _battery;
     _array.add(_doc);
 
+    turnOnLED();
+
     if(_Client->PutData("dev", "test", _array))
-        Serial.println(F("PutData SUCCESS"));  
+    {
+      Serial.println(F("PutData SUCCESS"));  
+      _ErrorTick = 0;
+    }
+    else
+      _ErrorTick++;
+
+    turnOffLED();
   }
   catch(...){}
   
@@ -176,9 +217,15 @@ void setup()
   try
   {
     initENV();
+
     resetWiFi();
+    blinkLED(100);
+
     loginSystem();
+    blinkLED(100);
+
     connetBLEDevice();
+    blinkLED(100);
   }
   catch(...){}
 }
@@ -204,15 +251,16 @@ void loop()
         if(_Battery > 100) _Battery = 100;
 
         Serial.printf("Temp : %.02fºC, Humi : %.01f%, Battery : %.01f\n", _Tempture, _Humidity, _Battery);
+        blinkLED(50);
       }
     }
     else
       _BleClient->connect(_BleTargetAddr);
 
-    _LoopTick++;
-
     if(_LoopTick%15 == 0) uploadData(_Tempture, _Humidity, _Battery);
-    if(_LoopTick >= 86400) ESP.restart();
+    if(_LoopTick >= 43200 || _ErrorTick >= 10) ESP.restart();
+
+    _LoopTick++;
 
     delay(1000);
   }
