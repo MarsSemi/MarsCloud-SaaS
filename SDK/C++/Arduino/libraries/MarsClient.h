@@ -89,21 +89,26 @@ String MarsClient::HttpPost(String _url, String _payload)
     for(int i=0;i<15000;i++)
     {      
       delay(1);
-      if(_client.available())
-        _resp += _client.readString();
 
+      if(_client.available()) _resp += _client.readString();
       if(_resp.indexOf(F("200 OK")) == 9)
       {   
         int _startIndex = _resp.indexOf(F("\r\n\r\n")); 
-        if(_startIndex >= 0)                              
-          return _resp.substring(_startIndex+4);   
+        if(_startIndex >= 0)            
+        {
+          _client.stop();               
+          return _resp.substring(_startIndex+4);
+        }             
       }
+      else
+      if(_resp.indexOf(F("HTTP/")) == 0 && _resp.indexOf(F("\r\n\r\n")) >= 0)
+        break;
     }
   }
 
-  while(_client.connected()) delay(1);
-  _client.stop();  
-    
+  _resp = "";
+  _client.stop();      
+  
   return _resp;
 }
 //--------------------------------------------------------------
