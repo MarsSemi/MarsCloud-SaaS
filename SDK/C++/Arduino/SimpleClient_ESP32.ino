@@ -84,7 +84,7 @@ void resetWiFi()
     int _tick = 0;
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin("mars3_2.4G", "57525670");
+    WiFi.begin("ssid", "password");
 
     while (WiFi.status() != WL_CONNECTED)
     {
