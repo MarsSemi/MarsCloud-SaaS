@@ -171,8 +171,8 @@ void loginSystem()
 
       Serial.println(F("[Mars] Login SUCCESS"));  
 
-      //if(_Client->RegDevice("dev", "test", "both.temp"))
-      //  Serial.println(F("RegDevice SUCCESS"));  
+      if(_Client->RegDevice("dev", "test", "both.temp"))
+        Serial.println(F("RegDevice SUCCESS"));  
     }
   }
   catch(...){}
@@ -258,7 +258,7 @@ void loop()
       _BleClient->connect(_BleTargetAddr);
 
     if(_LoopTick%15 == 0) uploadData(_Tempture, _Humidity, _Battery);
-    if(_LoopTick >= 43200 || _ErrorTick >= 10) ESP.restart();
+    if(_LoopTick >= 7200 || _ErrorTick >= 10) ESP.restart();
 
     _LoopTick++;
 
