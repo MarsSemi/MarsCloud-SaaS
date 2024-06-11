@@ -234,7 +234,7 @@ void loop()
 {
   try
   {
-    if(WiFi.status() != WL_CONNECTED) resetWiFi();
+    if(WiFi.status() != WL_CONNECTED) ESP.restart();
     if(_BleClient->isConnected())
     {
       std::string _value = _BleClient->getValue(BLEUUID("ebe0ccb0-7a0a-4b0c-8a1a-6ff2997da3a6"), BLEUUID("ebe0ccc1-7a0a-4b0c-8a1a-6ff2997da3a6"));
