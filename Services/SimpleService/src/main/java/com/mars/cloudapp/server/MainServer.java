@@ -38,6 +38,7 @@ public class MainServer
 		{
 			try
 			{
+				//Do something berfore service close
 			}
 			catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); }				
 		}
@@ -46,15 +47,7 @@ public class MainServer
 		{
 			try
 			{
-				final long _oneDaySecond = 86400;
-				final long _reloginTimeout = (long) (_oneDaySecond*0.95*1000);
-	        	
-	        	while(_MarsClient != null)
-				{
-					Thread.sleep(60*1000);
-					if(System.currentTimeMillis() - _SystemStartTime >= _reloginTimeout)
-						RestartService();
-				}
+				//Service looping process
 			}
 			catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); }			
 		}
@@ -66,7 +59,7 @@ public class MainServer
     public static void main( String[] _args ) throws ClassNotFoundException
     {    	
     	try
-		{   		        		
+	{   		        		
     		System.gc();
     		System.err.close();
     		System.setErr(new PrintStream(new OutputStream() { public void write(int _b) {}; }));  
@@ -76,9 +69,9 @@ public class MainServer
     		
     		String _initFile = _args.length > 0 ? _args[0] : "agent.properties";
     		
-			Global.InitAll(MainServer.class, new Service(_initFile));	
-		}
-		catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); }	
+		Global.InitAll(MainServer.class, new Service(_initFile));	
+	}
+	catch(Exception _e){ Tools.ExceptionMsgPrintOut(_e, new Object(){}.getClass()); }	
     	finally { System.gc(); }
     }
     //--------------------------------------------------------------------------------------
