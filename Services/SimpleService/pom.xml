@@ -29,8 +29,8 @@
             </configuration>
         </plugin>
         <plugin>
-		  	<artifactId>maven-assembly-plugin</artifactId>
-		  	<version>3.3.0</version>
+		<artifactId>maven-assembly-plugin</artifactId>
+		<version>3.3.0</version>
 	        <configuration>
 	        	<outputDirectory>bin</outputDirectory>
 	        	<archive>
@@ -39,7 +39,7 @@
 			    		<mainClass>com.mars.cloudapp.server.MainServer</mainClass>
 			    		<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 			    	</manifest>
-			  	</archive>
+			</archive>
 	          <descriptorRefs>
 	          <descriptorRef>jar-with-dependencies</descriptorRef>
 	          </descriptorRefs>
@@ -64,7 +64,7 @@
 	<dependency>
 		<groupId>com.mars.cloud</groupId>
 		<artifactId>server-packet</artifactId>
-		<version>[1.24.1126,)</version>
+		<version>[1.24.1216,)</version>
 	</dependency>
   </dependencies>
   <repositories>
