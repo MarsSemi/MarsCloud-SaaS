@@ -64,7 +64,7 @@
 	<dependency>
 		<groupId>com.mars.cloud</groupId>
 		<artifactId>server-packet</artifactId>
-		<version>[1.24.1216,)</version>
+		<version>[1.25.0115,)</version>
 	</dependency>
   </dependencies>
   <repositories>
