@@ -147,8 +147,6 @@ func (_hs *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback) {
 
 		_hs._Handlers[_uri] = _api.callBack
 		_hs._Mux.HandleFunc(_uri, _api.servHTTP)
-
-		fmt.Printf("AddRestfulAPI : %s\n", _uri)
 	}
 }
 
