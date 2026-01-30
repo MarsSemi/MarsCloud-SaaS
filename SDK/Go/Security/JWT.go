@@ -66,9 +66,12 @@ func (_this *JWTProcessor) NewRSAKey(_method string, _pubPath string, _priPath s
 	return _this.LoadRSAKeyFromFile(_pubPath, _priPath)
 }
 
+// -------------------------------------------------------------------------------------
 // LoadRSAKey 從位元組載入 RSA 金鑰
 func (_this *JWTProcessor) LoadRSAKey(_pubKey []byte, _priKey []byte) bool {
+
 	if len(_pubKey) > 0 && len(_priKey) > 0 {
+
 		// 解析公鑰 (X509)
 		_blockPub, _ := pem.Decode(_pubKey)
 		if _blockPub != nil {
@@ -77,6 +80,7 @@ func (_this *JWTProcessor) LoadRSAKey(_pubKey []byte, _priKey []byte) bool {
 				_this._PublicKey = _pub.(*rsa.PublicKey)
 			}
 		}
+
 		// 解析私鑰 (PKCS8)
 		_blockPri, _ := pem.Decode(_priKey)
 		if _blockPri != nil {
@@ -88,11 +92,13 @@ func (_this *JWTProcessor) LoadRSAKey(_pubKey []byte, _priKey []byte) bool {
 	}
 
 	if _this._PublicKey == nil || _this._PrivateKey == nil {
+
 		Tools.Log.Print(Tools.LL_Warning, "JWS RSA Key is empty, dynamic generating ...")
 		_pri, _err := rsa.GenerateKey(rand.Reader, 2048) // Go 建議至少 2048
 		if _err != nil {
 			return false
 		}
+
 		_this._PrivateKey = _pri
 		_this._PublicKey = &_pri.PublicKey
 	}
@@ -146,6 +152,7 @@ func (_this *JWTProcessor) LoadAESKey(_key []byte) bool {
 	if _err != nil {
 		return false
 	}
+
 	_this._AESBlock = _block
 	Tools.Log.Print(Tools.LL_Info, "JWS AES Key is ready")
 	return true

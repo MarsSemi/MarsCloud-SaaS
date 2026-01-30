@@ -172,46 +172,12 @@ func (_this *MarsService) init(_propertyFileName string) {
 }
 
 // -------------------------------------------------------------------------------------
-// killProcessByPort 根據埠號找出並關閉進程 (支援 Windows, Mac, Linux)
-// -------------------------------------------------------------------------------------
-func (_this *MarsService) killProcessByPort(_port int) {
-	var _pid string
-
-	if Tools.IsMSWindow() {
-		// Windows: 透過 netstat 找出佔用該 port 且處於 LISTENING 狀態的 PID
-		// 指令範例: netstat -ano | findstr :80 | findstr LISTENING
-		_cmd := fmt.Sprintf("netstat -ano | findstr :%d | findstr LISTENING", _port)
-		_out := Tools.ShellCMDSync(_cmd)
-		_lines := strings.Split(strings.TrimSpace(_out), "\n")
-
-		if len(_lines) > 0 && _lines[0] != "" {
-			// Windows netstat 輸出格式最後一欄位通常是 PID
-			_parts := strings.Fields(_lines[0])
-			if len(_parts) > 0 {
-				_pid = _parts[len(_parts)-1]
-			}
-		}
-
-	} else {
-		// Linux & macOS: 使用 lsof 直接取得 PID (-t 代表僅輸出 PID)
-		_cmd := fmt.Sprintf("lsof -t -i:%d", _port)
-		_pid = strings.TrimSpace(Tools.ShellCMDSync(_cmd))
-	}
-
-	// 如果有找到 PID，則執行殺掉進程的動作
-	if _pid != "" && _pid != "0" {
-		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Found PID %s occupying port %d. Killing it...", _pid, _port))
-		Tools.KillProcess(_pid)
-	}
-}
-
-// -------------------------------------------------------------------------------------
 func (_this *MarsService) checPortConflict() {
 
 	// 檢查端口衝突並嘗試自動排除
 	if Tools.IsPortInUsing(_this.defaultHttpPort) {
 		// 執行強制清理
-		_this.killProcessByPort(_this.defaultHttpPort)
+		Tools.KillProcessByPort(_this.defaultHttpPort)
 
 		// 給予作業系統短暫的時間釋放 Socket
 		time.Sleep(3 * time.Second)
@@ -240,6 +206,7 @@ func (_this *MarsService) Start() {
 		// 檢查端口衝突
 		_this.checPortConflict()
 		_this.initMQTTClient(_this.MarsClient.GetServerURL())
+		_this.doRegistry(true)
 
 		if _this.AsyncTaskProcessor == nil {
 
@@ -277,7 +244,7 @@ func (_this *MarsService) initCloseHook() {
 
 		_this.impl.BeforeServiceStop()
 		_this.ServiceInfo.Put("is_online", false)
-		_this.DoRegistry(false)
+		_this.doRegistry(false)
 
 		Tools.Log.Print(Tools.LL_Info, "Clean up finish, process exit")
 		Tools.Log.Print(Tools.LL_Info, "- ")
@@ -307,8 +274,8 @@ func (_this *MarsService) initMarsClient(_url, _account, _pass, _proj string) {
 }
 
 // -------------------------------------------------------------------------------------
-// DoRegistry 執行服務註冊
-func (_this *MarsService) DoRegistry(_resetKey bool) bool {
+// doRegistry 執行服務註冊
+func (_this *MarsService) doRegistry(_resetKey bool) bool {
 	if _this.MarsClient != nil {
 		_info := _this.ServiceInfo
 		// 加入 PID 資訊
@@ -362,7 +329,7 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 		for {
 			select {
 			case <-_this.syncTimer.C:
-				_this.DoRegistry(false)
+				_this.doRegistry(false)
 			case <-_this.stopChan:
 				return
 			}
@@ -660,7 +627,7 @@ func (_this *MarsService) StopService() bool {
 	// 2. 通知雲端服務目前為離線狀態並執行最後一次註冊同步
 	if _this.ServiceInfo != nil {
 		_this.ServiceInfo.Put("is_online", false)
-		_this.DoRegistry(false)
+		_this.doRegistry(false)
 	}
 
 	// 3. 關閉網路連線資源

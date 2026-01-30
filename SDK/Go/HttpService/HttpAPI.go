@@ -46,7 +46,7 @@ func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 
 	if len(_auth) > 0 && strings.Contains(_auth, " ") {
 		_auth = strings.Split(_auth, " ")[1]
-		_jwt = Security.VerifyToken(_auth, Security.UT_User, _r.RemoteAddr)
+		_jwt = Security.VerifyToken(_auth, "", _r.RemoteAddr)
 	}
 
 	_resp := _h.callBack.Process(_w, _r, _jwt, _items, nil, "")

@@ -271,6 +271,7 @@ func (_this *MarsClient) ResetSecurityKey() bool {
 	if _pubBase64 != "" && _priBase64 != "" {
 		_pubKey, _ := base64.StdEncoding.DecodeString(_pubBase64)
 		_priKey, _ := base64.StdEncoding.DecodeString(_priBase64)
+
 		return Security.JWT.LoadRSAKey(_pubKey, _priKey)
 	}
 

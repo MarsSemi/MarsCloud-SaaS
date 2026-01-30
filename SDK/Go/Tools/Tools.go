@@ -419,6 +419,40 @@ func GetInternetIPv4Address() string {
 }
 
 // -------------------------------------------------------------------------------------
+// killProcessByPort 根據埠號找出並關閉進程 (支援 Windows, Mac, Linux)
+// -------------------------------------------------------------------------------------
+func KillProcessByPort(_port int) {
+	var _pid string
+
+	if IsMSWindow() {
+		// Windows: 透過 netstat 找出佔用該 port 且處於 LISTENING 狀態的 PID
+		// 指令範例: netstat -ano | findstr :80 | findstr LISTENING
+		_cmd := fmt.Sprintf("netstat -ano | findstr :%d | findstr LISTENING", _port)
+		_out := ShellCMDSync(_cmd)
+		_lines := strings.Split(strings.TrimSpace(_out), "\n")
+
+		if len(_lines) > 0 && _lines[0] != "" {
+			// Windows netstat 輸出格式最後一欄位通常是 PID
+			_parts := strings.Fields(_lines[0])
+			if len(_parts) > 0 {
+				_pid = _parts[len(_parts)-1]
+			}
+		}
+
+	} else {
+		// Linux & macOS: 使用 lsof 直接取得 PID (-t 代表僅輸出 PID)
+		_cmd := fmt.Sprintf("lsof -t -i:%d", _port)
+		_pid = strings.TrimSpace(ShellCMDSync(_cmd))
+	}
+
+	// 如果有找到 PID，則執行殺掉進程的動作
+	if _pid != "" && _pid != "0" {
+		Log.Print(LL_Info, fmt.Sprintf("Found PID %s occupying port %d. Killing it...", _pid, _port))
+		KillProcess(_pid)
+	}
+}
+
+// -------------------------------------------------------------------------------------
 func IsPortInUsing(_port int) bool {
 	// 檢查 TCP
 	_tcpAddr := fmt.Sprintf(":%d", _port)

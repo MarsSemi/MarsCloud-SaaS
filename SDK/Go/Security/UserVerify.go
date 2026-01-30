@@ -31,8 +31,10 @@ func VerifyToken(_auth_string string, _group UserGroup, _ipadd_from string) *Mar
 	_jobj := DecryptToken(_auth_string, false)
 
 	if _jobj != nil {
+
 		// 2. 驗證群組是否匹配 (如果 _group 為空則跳過驗證)
 		_tokenGroup := strings.ToLower(_jobj.OptString("group", ""))
+
 		if _group == "" || string(_group) == _tokenGroup {
 
 			// 3. 記錄來源 IP 並回傳
@@ -40,16 +42,22 @@ func VerifyToken(_auth_string string, _group UserGroup, _ipadd_from string) *Mar
 			if _ipadd_from != "" {
 				_connectFrom = _ipadd_from
 			}
+
 			_jobj.Put("connect_from", _connectFrom)
+
 			return _jobj
 		}
-	}
 
-	// 4. 失敗時記錄 Debug Log
-	if _ipadd_from != "" {
-		Tools.Log.Print(Tools.LL_Debug, "Verify token fail from "+_ipadd_from)
+		Tools.Log.Print(Tools.LL_Debug, "User Group Verify Error : %s != %s", _tokenGroup, _group)
+
 	} else {
-		Tools.Log.Print(Tools.LL_Debug, "Verify token fail : "+_auth_string)
+
+		// 4. 失敗時記錄 Debug Log
+		if _ipadd_from != "" {
+			Tools.Log.Print(Tools.LL_Debug, "Verify token fail from "+_ipadd_from)
+		} else {
+			Tools.Log.Print(Tools.LL_Debug, "Verify token fail : "+_auth_string)
+		}
 	}
 
 	return nil
