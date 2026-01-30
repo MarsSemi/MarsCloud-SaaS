@@ -43,7 +43,7 @@ type HttpService struct {
 // -------------------------------------------------------------------------------------
 // NewHttpService 模擬 Java 建構子
 func Create(_http_port, _https_port int, _ssl_key, _ssl_pwd string) *HttpService {
-	_hs := &HttpService{
+	_this := &HttpService{
 		_HttpPort:    _http_port,
 		_HttpsPort:   _https_port,
 		_SSLKey:      _ssl_key,
@@ -52,62 +52,62 @@ func Create(_http_port, _https_port int, _ssl_key, _ssl_pwd string) *HttpService
 		_Handlers:    make(map[string]HttpAPI_Callback),
 	}
 
-	_hs._Mux.HandleFunc("/", _hs.serveHTTP)
-	_hs.InitExecutor(false, "sync", 8, 800, 500)
+	_this._Mux.HandleFunc("/", _this.serveHTTP)
+	_this.InitExecutor(false, "sync", 8, 800, 500)
 
-	if _hs._HttpPort > 0 {
-		_hs._HttpServer = &http.Server{
-			Addr:    fmt.Sprintf(":%d", _hs._HttpPort),
-			Handler: _hs._Mux,
+	if _this._HttpPort > 0 {
+		_this._HttpServer = &http.Server{
+			Addr:    fmt.Sprintf(":%d", _this._HttpPort),
+			Handler: _this._Mux,
 		}
 	}
 
-	if _hs._HttpsPort > 0 && _hs._SSLKey != "" {
+	if _this._HttpsPort > 0 && _this._SSLKey != "" {
 		// 這裡假設 SSL Key 是 PEM 格式路徑，或是使用先前 Security.go 實作的加載方式
-		_hs._HttpsServer = &http.Server{
-			Addr:    fmt.Sprintf(":%d", _hs._HttpsPort),
-			Handler: _hs._Mux,
+		_this._HttpsServer = &http.Server{
+			Addr:    fmt.Sprintf(":%d", _this._HttpsPort),
+			Handler: _this._Mux,
 			TLSConfig: &tls.Config{
 				MinVersion: tls.VersionTLS12,
 			},
 		}
 	}
 
-	return _hs
+	return _this
 }
 
 //-------------------------------------------------------------------------------------
 // 設定方法
 //-------------------------------------------------------------------------------------
 
-func (_hs *HttpService) SetRootPath(_path string) {
-	_hs._RootPath = _path
-	if len(_hs._RootPath) > 0 && strings.HasSuffix(_hs._RootPath, "/") {
-		_hs._RootPath = _hs._RootPath[:len(_hs._RootPath)-1]
+func (_this *HttpService) SetRootPath(_path string) {
+	_this._RootPath = _path
+	if len(_this._RootPath) > 0 && strings.HasSuffix(_this._RootPath, "/") {
+		_this._RootPath = _this._RootPath[:len(_this._RootPath)-1]
 	}
 }
 
 // -------------------------------------------------------------------------------------
-func (_hs *HttpService) SetDefaultHTML(_default_html string) {
-	_hs._DefaultHTML = _default_html
+func (_this *HttpService) SetDefaultHTML(_default_html string) {
+	_this._DefaultHTML = _default_html
 }
 
 // -------------------------------------------------------------------------------------
-func (_hs *HttpService) SetDefaultCacheControl(_control string) {
-	_hs._DefaultCacheControl = _control
+func (_this *HttpService) SetDefaultCacheControl(_control string) {
+	_this._DefaultCacheControl = _control
 }
 
 // -------------------------------------------------------------------------------------
 // InitExecutor 在 Go 中簡化實作 (因為 Go 自動處理 Goroutine 池)
-func (_hs *HttpService) InitExecutor(_force bool, _method string, _core, _max, _timeout int) {
-	_hs._PoolMethod = _method
-	_hs._MaxConnection = _max
+func (_this *HttpService) InitExecutor(_force bool, _method string, _core, _max, _timeout int) {
+	_this._PoolMethod = _method
+	_this._MaxConnection = _max
 	// Go 的 http.Server 會自動根據需求增長，這裡主要設定逾時限制
 }
 
 // -------------------------------------------------------------------------------------
 // ServeHTTP 實作 http.Handler 介面 (對應 Java handle/Process)
-func (_hs *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
+func (_this *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 
 	_uriOrg, _ := url.PathUnescape(_r.RequestURI)
 
@@ -116,8 +116,8 @@ func (_hs *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 	}
 
 	_uri := strings.Split(_uriOrg, "?")[0]
-	_fn := _hs._RootPath + _uri
-	_cacheControl := Tools.If(_hs._EnableCache, _hs._DefaultCacheControl, "no-cache")
+	_fn := _this._RootPath + _uri
+	_cacheControl := Tools.If(_this._EnableCache, _this._DefaultCacheControl, "no-cache")
 
 	if len(_fn) > 0 {
 
@@ -132,12 +132,12 @@ func (_hs *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 
 // -------------------------------------------------------------------------------------
 // CreateRestfulAPI 註冊路由處理器
-func (_hs *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback) {
+func (_this *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback) {
 
 	if _callback != nil {
 
-		_hs._MuxLock.Lock()
-		defer _hs._MuxLock.Unlock()
+		_this._MuxLock.Lock()
+		defer _this._MuxLock.Unlock()
 
 		if strings.HasSuffix(_uri, "/") == false {
 			_uri = _uri + "/"
@@ -145,34 +145,34 @@ func (_hs *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback) {
 
 		_api := CreateHttpAPI(_callback)
 
-		_hs._Handlers[_uri] = _api.callBack
-		_hs._Mux.HandleFunc(_uri, _api.servHTTP)
+		_this._Handlers[_uri] = _api.callBack
+		_this._Mux.HandleFunc(_uri, _api.servHTTP)
 	}
 }
 
 // -------------------------------------------------------------------------------------
 // RemoveRestfulAPI 移除路徑 (在標準 http.ServeMux 中較難實現，此處提供邏輯封裝)
-func (_hs *HttpService) RemoveRestfulAPI(_uri string) {
+func (_this *HttpService) RemoveRestfulAPI(_uri string) {
 
-	_hs._MuxLock.Lock()
-	defer _hs._MuxLock.Unlock()
-	delete(_hs._Handlers, _uri)
+	_this._MuxLock.Lock()
+	defer _this._MuxLock.Unlock()
+	delete(_this._Handlers, _uri)
 
 	http.HandleFunc(_uri, nil)
 }
 
 // -------------------------------------------------------------------------------------
 // run 啟動服務 (對應 Java 的 start() -> run())
-func (_hs *HttpService) Run() {
+func (_this *HttpService) Run() {
 
 	// HTTP Server
-	if _hs._HttpServer != nil {
+	if _this._HttpServer != nil {
 
 		go func() {
 
-			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Http Listen at : %d", _hs._HttpPort))
+			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Http Listen at : %d", _this._HttpPort))
 
-			if _err := _hs._HttpServer.ListenAndServe(); _err != nil && _err != http.ErrServerClosed {
+			if _err := _this._HttpServer.ListenAndServe(); _err != nil && _err != http.ErrServerClosed {
 
 				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTP Listen Error: %v", _err))
 
@@ -181,13 +181,13 @@ func (_hs *HttpService) Run() {
 	}
 
 	// HTTPS Server
-	if _hs._HttpsServer != nil {
+	if _this._HttpsServer != nil {
 
 		go func() {
 
-			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Https Listen at : %d", _hs._HttpsPort))
+			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Https Listen at : %d", _this._HttpsPort))
 			// Go 內建 ListenAndServeTLS 需要 Cert 與 Key 檔案路徑
-			if _err := _hs._HttpsServer.ListenAndServeTLS(_hs._SSLKey, _hs._SSLPassword); _err != nil && _err != http.ErrServerClosed {
+			if _err := _this._HttpsServer.ListenAndServeTLS(_this._SSLKey, _this._SSLPassword); _err != nil && _err != http.ErrServerClosed {
 
 				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTPS Listen Error: %v\n", _err))
 
@@ -198,23 +198,23 @@ func (_hs *HttpService) Run() {
 
 // -------------------------------------------------------------------------------------
 // Close 關閉伺服器
-func (_hs *HttpService) Close() bool {
+func (_this *HttpService) Close() bool {
 	_ctx, _cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer _cancel()
 
-	if _hs._HttpServer != nil {
-		_hs._HttpServer.Shutdown(_ctx)
+	if _this._HttpServer != nil {
+		_this._HttpServer.Shutdown(_ctx)
 	}
-	if _hs._HttpsServer != nil {
-		_hs._HttpsServer.Shutdown(_ctx)
+	if _this._HttpsServer != nil {
+		_this._HttpsServer.Shutdown(_ctx)
 	}
 	return true
 }
 
 // -------------------------------------------------------------------------------------
 // GetHttpPort 取得實際通訊埠
-func (_hs *HttpService) GetHttpPort() int {
-	return _hs._HttpPort
+func (_this *HttpService) GetHttpPort() int {
+	return _this._HttpPort
 }
 
 // -------------------------------------------------------------------------------------

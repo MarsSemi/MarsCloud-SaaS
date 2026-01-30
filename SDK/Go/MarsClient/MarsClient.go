@@ -54,101 +54,101 @@ func Create() *MarsClient {
 // -------------------------------------------------------------------------------------
 // 基礎通訊與登入
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) LocalLogin(_proj string) bool {
-	_mc.ProjID = _proj
+func (_this *MarsClient) LocalLogin(_proj string) bool {
+	_this.ProjID = _proj
 	_api := "/auth/login?"
 	if _proj != "" {
 		_api = "/auth/login?proj=" + _proj
 	}
 
-	_mc.AuthToken = _mc.CallAPI(_api, "{}", _DefaultTimeOut)
-	return _mc.AuthToken != ""
+	_this.AuthToken = _this.CallAPI(_api, "{}", _DefaultTimeOut)
+	return _this.AuthToken != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) resetServerURLs(_url string) {
+func (_this *MarsClient) resetServerURLs(_url string) {
 	if len(_url) > 4 {
 		_cleanURL := strings.ReplaceAll(_url, " ", "")
-		_mc.ServerURLs = strings.Split(_cleanURL, ",")
+		_this.ServerURLs = strings.Split(_cleanURL, ",")
 	} else {
-		_mc.ServerURLs = []string{"https://www.mars-cloud.com"}
+		_this.ServerURLs = []string{"https://www.mars-cloud.com"}
 	}
 }
 
 // -------------------------------------------------------------------------------------
 // Login 基礎登入
-func (_mc *MarsClient) Login(_url string, _account string, _pass string) bool {
-	_mc.resetServerURLs(_url)
-	_mc.Account = _account
-	_mc.Password = _pass
-	return _mc.ReLogin()
+func (_this *MarsClient) Login(_url string, _account string, _pass string) bool {
+	_this.resetServerURLs(_url)
+	_this.Account = _account
+	_this.Password = _pass
+	return _this.ReLogin()
 }
 
 // -------------------------------------------------------------------------------------
 // LoginWithProj 帶有專案 ID 的登入
-func (_mc *MarsClient) LoginWithProj(_url string, _account string, _pass string, _proj string) bool {
-	_mc.resetServerURLs(_url)
-	_mc.Account = _account
-	_mc.Password = _pass
-	_mc.ProjID = _proj
-	return _mc.ReLogin()
+func (_this *MarsClient) LoginWithProj(_url string, _account string, _pass string, _proj string) bool {
+	_this.resetServerURLs(_url)
+	_this.Account = _account
+	_this.Password = _pass
+	_this.ProjID = _proj
+	return _this.ReLogin()
 }
 
 // -------------------------------------------------------------------------------------
 // LoginByToken 使用現有 Token 登入
-func (_mc *MarsClient) LoginByToken(_url string, _token string) bool {
-	_mc.resetServerURLs(_url)
-	_mc.AuthToken = _token
-	return _mc.ReLogin()
+func (_this *MarsClient) LoginByToken(_url string, _token string) bool {
+	_this.resetServerURLs(_url)
+	_this.AuthToken = _token
+	return _this.ReLogin()
 }
 
 // -------------------------------------------------------------------------------------
 // LoginByKeyWithProj 使用 Key 與專案 ID 登入
-func (_mc *MarsClient) LoginByKeyWithProj(_url string, _proj string, _key string) bool {
-	_mc.resetServerURLs(_url)
-	_mc.Account = _proj
-	_mc.ProjID = _proj
-	_mc.SecretKey = _key
-	return _mc.ReLogin()
+func (_this *MarsClient) LoginByKeyWithProj(_url string, _proj string, _key string) bool {
+	_this.resetServerURLs(_url)
+	_this.Account = _proj
+	_this.ProjID = _proj
+	_this.SecretKey = _key
+	return _this.ReLogin()
 }
 
 // -------------------------------------------------------------------------------------
 // LoginByKey 使用 Key 登入
-func (_mc *MarsClient) LoginByKey(_url string, _key string) bool {
-	_mc.resetServerURLs(_url)
-	_mc.SecretKey = _key
-	return _mc.ReLogin()
+func (_this *MarsClient) LoginByKey(_url string, _key string) bool {
+	_this.resetServerURLs(_url)
+	_this.SecretKey = _key
+	return _this.ReLogin()
 }
 
 // -------------------------------------------------------------------------------------
 // ReLogin 重新執行登入流程
-func (_mc *MarsClient) ReLogin() bool {
+func (_this *MarsClient) ReLogin() bool {
 
-	if len(_mc.Account) > 0 && len(_mc.Password) > 0 {
+	if len(_this.Account) > 0 && len(_this.Password) > 0 {
 		_payload := MarsJSON.NewJSONObject(nil)
-		_payload.Put("usr", _mc.Account)
-		_payload.Put("pwd", _mc.Password)
-		_payload.Put("proj", _mc.ProjID)
+		_payload.Put("usr", _this.Account)
+		_payload.Put("pwd", _this.Password)
+		_payload.Put("proj", _this.ProjID)
 
 		_api := "/auth/login?"
-		if len(_mc.ProjID) > 0 {
-			_api = "/auth/login?proj=" + _mc.ProjID
+		if len(_this.ProjID) > 0 {
+			_api = "/auth/login?proj=" + _this.ProjID
 		}
-		_mc.AuthToken = Tools.HttpPost(_mc.GetServerURL()+_api, "", "", _payload.ToString(), 0)
+		_this.AuthToken = Tools.HttpPost(_this.GetServerURL()+_api, "", "", _payload.ToString(), 0)
 
-	} else if len(_mc.SecretKey) > 0 {
-		_urlStr := _mc.GetServerURL() + "/auth/get_auth_by_key?"
-		if len(_mc.ProjID) > 0 {
-			_urlStr += "proj=" + _mc.ProjID
+	} else if len(_this.SecretKey) > 0 {
+		_urlStr := _this.GetServerURL() + "/auth/get_auth_by_key?"
+		if len(_this.ProjID) > 0 {
+			_urlStr += "proj=" + _this.ProjID
 		}
-		_mc.AuthToken = Tools.HttpPost(_urlStr, "", "", _mc.SecretKey, 0)
-	} else if len(_mc.AuthToken) > 0 {
+		_this.AuthToken = Tools.HttpPost(_urlStr, "", "", _this.SecretKey, 0)
+	} else if len(_this.AuthToken) > 0 {
 		// 遵循 Java 原始邏輯：AuthToken 存在時嘗試使用 SecretKey 換取新 Auth
-		_mc.AuthToken = Tools.HttpPost(_mc.GetServerURL()+"/auth/get_auth_by_key?", "", "", _mc.SecretKey, 0)
+		_this.AuthToken = Tools.HttpPost(_this.GetServerURL()+"/auth/get_auth_by_key?", "", "", _this.SecretKey, 0)
 	}
 
-	if len(_mc.AuthToken) > 10 {
-		_mc.UpdateServerURL()
+	if len(_this.AuthToken) > 10 {
+		_this.UpdateServerURL()
 		return true
 	}
 	return false
@@ -156,19 +156,19 @@ func (_mc *MarsClient) ReLogin() bool {
 
 // -------------------------------------------------------------------------------------
 // UpdateServerURL 更新負載平衡的伺服器清單
-func (_mc *MarsClient) UpdateServerURL() {
-	if _mc.EnableLoadBalance && len(_mc.AuthToken) > 10 {
-		_api := _mc.GetServerURL() + "/api/get_broker_list?"
-		_resp := Tools.HttpPost(_api, _mc.AuthToken, "", "", 0) // 預設 3000ms
+func (_this *MarsClient) UpdateServerURL() {
+	if _this.EnableLoadBalance && len(_this.AuthToken) > 10 {
+		_api := _this.GetServerURL() + "/api/get_broker_list?"
+		_resp := Tools.HttpPost(_api, _this.AuthToken, "", "", 0) // 預設 3000ms
 
 		if _resp != "" {
 			_payload := MarsJSON.NewJSONObject(_resp)
 			_results := _payload.OptJSONArray("results")
 
 			if _results != nil && _results.Length() > 0 {
-				_mc.ServerURLs = make([]string, _results.Length())
+				_this.ServerURLs = make([]string, _results.Length())
 				for _i := 0; _i < _results.Length(); _i++ {
-					_mc.ServerURLs[_i] = _results.OptString(_i, "")
+					_this.ServerURLs[_i] = _results.OptString(_i, "")
 				}
 			}
 		}
@@ -176,41 +176,41 @@ func (_mc *MarsClient) UpdateServerURL() {
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) GetServerURLByIndex(_index int) string {
-	if _index >= 0 && _index < len(_mc.ServerURLs) {
-		return _mc.ServerURLs[_index]
+func (_this *MarsClient) GetServerURLByIndex(_index int) string {
+	if _index >= 0 && _index < len(_this.ServerURLs) {
+		return _this.ServerURLs[_index]
 	}
 	return ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) GetServerURL() string {
-	if len(_mc.ServerURLs) == 0 {
+func (_this *MarsClient) GetServerURL() string {
+	if len(_this.ServerURLs) == 0 {
 		return ""
 	}
 	_index := 0
-	if _mc.EnableLoadBalance && len(_mc.ServerURLs) > 1 {
-		_index = rand.Intn(len(_mc.ServerURLs))
+	if _this.EnableLoadBalance && len(_this.ServerURLs) > 1 {
+		_index = rand.Intn(len(_this.ServerURLs))
 	}
-	return _mc.ServerURLs[_index]
+	return _this.ServerURLs[_index]
 }
 
 // -------------------------------------------------------------------------------------
 // CALL API
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) CallAPI(_api string, _payload string, _timeout int) string {
-	_url := _mc.GetServerURL() + _api
-	return Tools.HttpPost(_url, _mc.AuthToken, "application/json", _payload, 0)
+func (_this *MarsClient) CallAPI(_api string, _payload string, _timeout int) string {
+	_url := _this.GetServerURL() + _api
+	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, 0)
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) CallAPISpecify(_url string, _api string, _payload string, _timeout int) string {
+func (_this *MarsClient) CallAPISpecify(_url string, _api string, _payload string, _timeout int) string {
 
 	if _url == "" {
 		return ""
 	}
 
-	return Tools.HttpPost(_url, _mc.AuthToken, "application/json", _payload, 0)
+	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, 0)
 }
 
 //-------------------------------------------------------------------------------------
@@ -218,7 +218,7 @@ func (_mc *MarsClient) CallAPISpecify(_url string, _api string, _payload string,
 //-------------------------------------------------------------------------------------
 
 // DownloadOTA 下載遠端更新檔並儲存為檔案
-func (_mc *MarsClient) DownloadOTA(_srcFile string, _destFile string, _packet string, _version string) bool {
+func (_this *MarsClient) DownloadOTA(_srcFile string, _destFile string, _packet string, _version string) bool {
 
 	_payload := MarsJSON.NewJSONObject(nil)
 	_payload.Put("packet", _packet)
@@ -226,8 +226,8 @@ func (_mc *MarsClient) DownloadOTA(_srcFile string, _destFile string, _packet st
 	_payload.Put("file", _srcFile)
 
 	// 模擬 Java 版的高逾時設定 (10 分鐘)
-	_api := _mc.GetServerURL() + "/op/get_ota_file?"
-	_data := Tools.HttpPost(_api, _mc.AuthToken, "", _payload.ToString(), 600000)
+	_api := _this.GetServerURL() + "/op/get_ota_file?"
+	_data := Tools.HttpPost(_api, _this.AuthToken, "", _payload.ToString(), 600000)
 
 	if _data != "" {
 		_buf, _err := base64.StdEncoding.DecodeString(_data)
@@ -242,10 +242,10 @@ func (_mc *MarsClient) DownloadOTA(_srcFile string, _destFile string, _packet st
 // -------------------------------------------------------------------------------------
 // 安全性管理
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) ResetSecurityKey() bool {
+func (_this *MarsClient) ResetSecurityKey() bool {
 	defer Tools.GlobalRecovery()
 
-	if _mc.AuthToken == "" {
+	if _this.AuthToken == "" {
 		return false
 	}
 
@@ -254,7 +254,7 @@ func (_mc *MarsClient) ResetSecurityKey() bool {
 
 	// 1. 獲取 AES Key
 	_req.Put("target", "aes")
-	_aesBase64 := _mc.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
+	_aesBase64 := _this.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
 	if _aesBase64 == "" {
 		return false
 	}
@@ -264,9 +264,9 @@ func (_mc *MarsClient) ResetSecurityKey() bool {
 
 	// 2. 獲取 RSA Keys
 	_req.Put("target", "rsa_public")
-	_pubBase64 := _mc.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
+	_pubBase64 := _this.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
 	_req.Put("target", "rsa_private")
-	_priBase64 := _mc.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
+	_priBase64 := _this.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
 
 	if _pubBase64 != "" && _priBase64 != "" {
 		_pubKey, _ := base64.StdEncoding.DecodeString(_pubBase64)
@@ -281,36 +281,36 @@ func (_mc *MarsClient) ResetSecurityKey() bool {
 // 服務與設備註冊
 //-------------------------------------------------------------------------------------
 
-func (_mc *MarsClient) RegistryService(_info string, _resetKey bool) bool {
+func (_this *MarsClient) RegistryService(_info string, _resetKey bool) bool {
 	if _resetKey {
-		if !_mc.ResetSecurityKey() {
+		if !_this.ResetSecurityKey() {
 			return false
 		}
 	}
-	_resp := _mc.CallAPI("/auth/registry?target=server", _info, _DefaultTimeOut)
+	_resp := _this.CallAPI("/auth/registry?target=server", _info, _DefaultTimeOut)
 	return _resp != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) RegistryServiceProperties(_id string, _prop string) bool {
+func (_this *MarsClient) RegistryServiceProperties(_id string, _prop string) bool {
 	_api := fmt.Sprintf("/auth/registry?target=properties&id=%s", _id)
-	_resp := _mc.CallAPISpecify(_mc.GetServerURLByIndex(0), _api, _prop, _DefaultTimeOut)
+	_resp := _this.CallAPISpecify(_this.GetServerURLByIndex(0), _api, _prop, _DefaultTimeOut)
 	return _resp != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) RegistryDevice(_root *MarsJSON.JSONObject) bool {
-	if len(_mc.AuthToken) < 20 {
+func (_this *MarsClient) RegistryDevice(_root *MarsJSON.JSONObject) bool {
+	if len(_this.AuthToken) < 20 {
 		return false
 	}
-	_resp := _mc.CallAPI("/api/usrinfo?method=adddatasrc", _root.ToString(), _DefaultTimeOut)
+	_resp := _this.CallAPI("/api/usrinfo?method=adddatasrc", _root.ToString(), _DefaultTimeOut)
 	return strings.ToLower(_resp) == "ok"
 }
 
 // -------------------------------------------------------------------------------------
 // 資料存取 (Put/Get)
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) PutData(_uuid string, _suid string, _data *MarsJSON.JSONObject) bool {
+func (_this *MarsClient) PutData(_uuid string, _suid string, _data *MarsJSON.JSONObject) bool {
 	if _uuid == "" {
 		return false
 	}
@@ -322,12 +322,12 @@ func (_mc *MarsClient) PutData(_uuid string, _suid string, _data *MarsJSON.JSONO
 	_payload.Put("suid", _suid)
 	_payload.Put("values", _values)
 
-	_resp := _mc.CallAPI("/api/put?data", _payload.ToString(), _DefaultTimeOut)
+	_resp := _this.CallAPI("/api/put?data", _payload.ToString(), _DefaultTimeOut)
 	return _resp != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) PutDataAdv(_space, _owner, _uuid, _suid, _ukey string, _data *MarsJSON.JSONObject, _mqttPush bool) bool {
+func (_this *MarsClient) PutDataAdv(_space, _owner, _uuid, _suid, _ukey string, _data *MarsJSON.JSONObject, _mqttPush bool) bool {
 	if _uuid == "" {
 		return false
 	}
@@ -353,11 +353,11 @@ func (_mc *MarsClient) PutDataAdv(_space, _owner, _uuid, _suid, _ukey string, _d
 
 	_payload.Put("mqtt_push", _mqttPush)
 
-	return _mc.PutData(_uuid, _suid, _payload)
+	return _this.PutData(_uuid, _suid, _payload)
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) PutEvent(_uuid string, _suid string, _data *MarsJSON.JSONObject) bool {
+func (_this *MarsClient) PutEvent(_uuid string, _suid string, _data *MarsJSON.JSONObject) bool {
 
 	if _uuid == "" {
 		return false
@@ -370,19 +370,19 @@ func (_mc *MarsClient) PutEvent(_uuid string, _suid string, _data *MarsJSON.JSON
 	_payload.Put("suid", _suid)
 	_payload.Put("values", _values)
 
-	_resp := _mc.CallAPI("/api/put?event", _payload.ToString(), _DefaultTimeOut)
+	_resp := _this.CallAPI("/api/put?event", _payload.ToString(), _DefaultTimeOut)
 
 	return _resp != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) GetDataByTime(_uuid string, _startTime int64, _endTime int64) *MarsJSON.JSONObject {
+func (_this *MarsClient) GetDataByTime(_uuid string, _startTime int64, _endTime int64) *MarsJSON.JSONObject {
 
 	_data := MarsJSON.NewJSONObject(nil)
 	_data.Put("uuid", _uuid)
 	_data.Put("timestamp", fmt.Sprintf("%d~%d", _startTime, _endTime))
 
-	_resp := _mc.CallAPI("/api/get?data", _data.ToString(), _DefaultTimeOut)
+	_resp := _this.CallAPI("/api/get?data", _data.ToString(), _DefaultTimeOut)
 	if _resp == "" {
 		return nil
 	}
@@ -390,7 +390,7 @@ func (_mc *MarsClient) GetDataByTime(_uuid string, _startTime int64, _endTime in
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) GetDataByTimeAdv(_space, _owner, _uuid, _suid string, _start, _end int64, _compress bool) *MarsJSON.JSONObject {
+func (_this *MarsClient) GetDataByTimeAdv(_space, _owner, _uuid, _suid string, _start, _end int64, _compress bool) *MarsJSON.JSONObject {
 	if _uuid == "" {
 		return nil
 	}
@@ -412,11 +412,11 @@ func (_mc *MarsClient) GetDataByTimeAdv(_space, _owner, _uuid, _suid string, _st
 	if _compress {
 		_timeout = _Time_OneHour
 	}
-	_resp := _mc.CallAPI("/api/get?data", _data.ToString(), _timeout)
+	_resp := _this.CallAPI("/api/get?data", _data.ToString(), _timeout)
 
 	if _resp != "" {
 		if _compress {
-			return _mc.UnzipData(_resp)
+			return _this.UnzipData(_resp)
 		}
 		return MarsJSON.NewJSONObject(_resp)
 	}
@@ -424,13 +424,13 @@ func (_mc *MarsClient) GetDataByTimeAdv(_space, _owner, _uuid, _suid string, _st
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) GetLastData(_uuid string, _suid string, _count int, _compress bool) *MarsJSON.JSONObject {
+func (_this *MarsClient) GetLastData(_uuid string, _suid string, _count int, _compress bool) *MarsJSON.JSONObject {
 
-	return _mc.GetLastDataAdv("", "", _uuid, _suid, "", "", _count, _compress)
+	return _this.GetLastDataAdv("", "", _uuid, _suid, "", "", _count, _compress)
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) GetLastDataAdv(_space, _owner, _uuid, _suid, _orderBy, _orderType string, _count int, _compress bool) *MarsJSON.JSONObject {
+func (_this *MarsClient) GetLastDataAdv(_space, _owner, _uuid, _suid, _orderBy, _orderType string, _count int, _compress bool) *MarsJSON.JSONObject {
 	if _uuid == "" {
 		return nil
 	}
@@ -458,11 +458,11 @@ func (_mc *MarsClient) GetLastDataAdv(_space, _owner, _uuid, _suid, _orderBy, _o
 	if _compress {
 		_timeout = _Time_OneHour
 	}
-	_resp := _mc.CallAPI("/api/lastdata?method=read", _data.ToString(), _timeout)
+	_resp := _this.CallAPI("/api/lastdata?method=read", _data.ToString(), _timeout)
 
 	if _resp != "" {
 		if _compress {
-			return _mc.UnzipData(_resp)
+			return _this.UnzipData(_resp)
 		}
 		return MarsJSON.NewJSONObject(_resp)
 	}
@@ -470,13 +470,13 @@ func (_mc *MarsClient) GetLastDataAdv(_space, _owner, _uuid, _suid, _orderBy, _o
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) DeleteData(_uuid, _suid, _ukey string, _mqttPush bool) bool {
+func (_this *MarsClient) DeleteData(_uuid, _suid, _ukey string, _mqttPush bool) bool {
 
-	return _mc.DeleteDataAdv("", "", _uuid, _suid, _ukey, nil, _mqttPush)
+	return _this.DeleteDataAdv("", "", _uuid, _suid, _ukey, nil, _mqttPush)
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) DeleteDataAdv(_space, _owner, _uuid, _suid, _ukey string, _eventInfo *MarsJSON.JSONObject, _mqttPush bool) bool {
+func (_this *MarsClient) DeleteDataAdv(_space, _owner, _uuid, _suid, _ukey string, _eventInfo *MarsJSON.JSONObject, _mqttPush bool) bool {
 	if _uuid == "" {
 		return false
 	}
@@ -497,7 +497,7 @@ func (_mc *MarsClient) DeleteDataAdv(_space, _owner, _uuid, _suid, _ukey string,
 		_data.Put("event_info", _eventInfo)
 	}
 
-	_resp := _mc.CallAPI("/api/del?data", _data.ToString(), _DefaultTimeOut)
+	_resp := _this.CallAPI("/api/del?data", _data.ToString(), _DefaultTimeOut)
 
 	return _resp != ""
 }
@@ -506,7 +506,7 @@ func (_mc *MarsClient) DeleteDataAdv(_space, _owner, _uuid, _suid, _ukey string,
 // ZIP 資料解壓邏輯
 //-------------------------------------------------------------------------------------
 
-func (_mc *MarsClient) UnzipData(_dataBase64 string) *MarsJSON.JSONObject {
+func (_this *MarsClient) UnzipData(_dataBase64 string) *MarsJSON.JSONObject {
 
 	if len(_dataBase64) < 16 {
 		return nil
@@ -546,7 +546,7 @@ func (_mc *MarsClient) UnzipData(_dataBase64 string) *MarsJSON.JSONObject {
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) UnzipDataHuge(_dataBase64 string) []string {
+func (_this *MarsClient) UnzipDataHuge(_dataBase64 string) []string {
 	_list := make([]string, 0)
 	_zipBytes, _ := base64.StdEncoding.DecodeString(_dataBase64)
 	_reader, _err := zip.NewReader(bytes.NewReader(_zipBytes), int64(len(_zipBytes)))
@@ -566,7 +566,7 @@ func (_mc *MarsClient) UnzipDataHuge(_dataBase64 string) []string {
 // 非同步任務 (Async Task)
 //-------------------------------------------------------------------------------------
 
-func (_mc *MarsClient) RunAsyncTask(_taskID string, _service string, _api string, _payload *MarsJSON.JSONObject, _callback AsyncTaskCallback) {
+func (_this *MarsClient) RunAsyncTask(_taskID string, _service string, _api string, _payload *MarsJSON.JSONObject, _callback AsyncTaskCallback) {
 	if _taskID == "" || _api == "" || _callback == nil {
 		return
 	}
@@ -576,14 +576,14 @@ func (_mc *MarsClient) RunAsyncTask(_taskID string, _service string, _api string
 		defer Tools.GlobalRecovery()
 
 		_uri := strings.ReplaceAll(_api, "/", "+")
-		_url := fmt.Sprintf("%s/services-async/run/%s/%s/%s", _mc.GetServerURL(), _taskID, _service, _uri)
-		_resp := Tools.HttpPost(_url, _mc.AuthToken, "application/json", _payload.ToString(), 0)
+		_url := fmt.Sprintf("%s/services-async/run/%s/%s/%s", _this.GetServerURL(), _taskID, _service, _uri)
+		_resp := Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload.ToString(), 0)
 
 		for _resp != "" {
 			time.Sleep(2 * time.Second)
 			// 檢查狀態
-			_checkURL := fmt.Sprintf("%s/services-async/check/%s", _mc.GetServerURL(), _taskID)
-			_resp = Tools.HttpGet(_checkURL, _mc.AuthToken, 0)
+			_checkURL := fmt.Sprintf("%s/services-async/check/%s", _this.GetServerURL(), _taskID)
+			_resp = Tools.HttpGet(_checkURL, _this.AuthToken, 0)
 
 			if _callback(_resp) {
 				_resObj := MarsJSON.NewJSONObject(_resp)
@@ -596,7 +596,7 @@ func (_mc *MarsClient) RunAsyncTask(_taskID string, _service string, _api string
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) ReportAsyncTask(_taskID, _status string, _progress int) string {
+func (_this *MarsClient) ReportAsyncTask(_taskID, _status string, _progress int) string {
 	if _taskID == "" {
 		return ""
 	}
@@ -604,13 +604,13 @@ func (_mc *MarsClient) ReportAsyncTask(_taskID, _status string, _progress int) s
 	_payload.Put("status", _status)
 	_payload.Put("progress", _progress)
 	_api := "/services-async/report/" + _taskID
-	return _mc.CallAPI(_api, _payload.ToString(), _DefaultTimeOut)
+	return _this.CallAPI(_api, _payload.ToString(), _DefaultTimeOut)
 }
 
 // -------------------------------------------------------------------------------------
 // 其他功能
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) PushMail(_host *MarsJSON.JSONObject, _mail, _title, _msg string) bool {
+func (_this *MarsClient) PushMail(_host *MarsJSON.JSONObject, _mail, _title, _msg string) bool {
 	_obj := MarsJSON.NewJSONObject(nil)
 	if _host != nil {
 		_obj.Put("from", _host)
@@ -619,19 +619,19 @@ func (_mc *MarsClient) PushMail(_host *MarsJSON.JSONObject, _mail, _title, _msg 
 	_obj.Put("subject", _title)
 	_obj.Put("content_type", "text/plain; charset=UTF-8")
 	_obj.Put("content", _msg)
-	return _mc.CallAPI("/system/send_mail?", _obj.ToString(), _DefaultTimeOut) != ""
+	return _this.CallAPI("/system/send_mail?", _obj.ToString(), _DefaultTimeOut) != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) AddSystemLog(_type, _msg string) bool {
+func (_this *MarsClient) AddSystemLog(_type, _msg string) bool {
 	_obj := MarsJSON.NewJSONObject(nil)
 	_obj.Put("type", _type)
 	_obj.Put("msg", _msg)
-	return _mc.CallAPI("/sys/addsyslog?", _obj.ToString(), _DefaultTimeOut) != ""
+	return _this.CallAPI("/sys/addsyslog?", _obj.ToString(), _DefaultTimeOut) != ""
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MarsClient) SendBroadcast(_from string, _msg *MarsJSON.JSONObject) bool {
+func (_this *MarsClient) SendBroadcast(_from string, _msg *MarsJSON.JSONObject) bool {
 	_payload := MarsJSON.NewJSONObject(nil)
 	_values := MarsJSON.NewJSONArray(nil)
 	_values.Put(_msg)
@@ -642,7 +642,7 @@ func (_mc *MarsClient) SendBroadcast(_from string, _msg *MarsJSON.JSONObject) bo
 	_payload.Put("topic", "+/event/broadcast")
 	_payload.Put("values", _values)
 
-	return _mc.CallAPI("/sys/broadcast", _payload.ToString(), _DefaultTimeOut) != ""
+	return _this.CallAPI("/sys/broadcast", _payload.ToString(), _DefaultTimeOut) != ""
 }
 
 // -------------------------------------------------------------------------------------

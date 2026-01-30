@@ -36,16 +36,16 @@ type JavaScriptExecutor struct {
 // NewJavaScriptExecutor 建立執行器並初始化預設指令
 func CreateJSExecutor() *JavaScriptExecutor {
 
-	_je := &JavaScriptExecutor{
+	_this := &JavaScriptExecutor{
 		_Nodes: make([]*EngineNode, 0),
 	}
 
-	return _je
+	return _this
 }
 
 // -------------------------------------------------------------------------------------
 // 內部方法：為 VM 注入預設指令 (Sleep, XMLHttpRequest, TextFileReader)
-func (_je *JavaScriptExecutor) _bindDefaultCommands(_vm *goja.Runtime) {
+func (_this *JavaScriptExecutor) _bindDefaultCommands(_vm *goja.Runtime) {
 	// 1. Sleep 功能
 	_vm.Set("Sleep", func(_ms int) int {
 		time.Sleep(time.Duration(_ms) * time.Millisecond)
@@ -85,19 +85,19 @@ func (_je *JavaScriptExecutor) _bindDefaultCommands(_vm *goja.Runtime) {
 
 // -------------------------------------------------------------------------------------
 // ReloadFromScript 從字串載入並執行/編譯腳本
-func (_je *JavaScriptExecutor) ReloadFromScript(_id int, _script string, _isNeedCompile bool) int {
-	_je._Mutex.Lock()
-	defer _je._Mutex.Unlock()
+func (_this *JavaScriptExecutor) ReloadFromScript(_id int, _script string, _isNeedCompile bool) int {
+	_this._Mutex.Lock()
+	defer _this._Mutex.Unlock()
 
 	var _node *EngineNode
-	if _id >= 0 && _id < len(_je._Nodes) {
-		_node = _je._Nodes[_id]
+	if _id >= 0 && _id < len(_this._Nodes) {
+		_node = _this._Nodes[_id]
 	} else {
 		_node = &EngineNode{
-			_ID: len(_je._Nodes),
+			_ID: len(_this._Nodes),
 			_VM: goja.New(),
 		}
-		_je._bindDefaultCommands(_node._VM)
+		_this._bindDefaultCommands(_node._VM)
 	}
 
 	_node._PrevLoadTime = time.Now().UnixMilli()
@@ -115,22 +115,22 @@ func (_je *JavaScriptExecutor) ReloadFromScript(_id int, _script string, _isNeed
 	}
 
 	if _id < 0 {
-		_je._Nodes = append(_je._Nodes, _node)
+		_this._Nodes = append(_this._Nodes, _node)
 	}
 	return _node._ID
 }
 
 // -------------------------------------------------------------------------------------
 // LoadFromFile 從檔案載入腳本，支援自動重新載入
-func (_je *JavaScriptExecutor) LoadFromFile(_fn string, _isCompile bool, _reloadInterval int) int {
+func (_this *JavaScriptExecutor) LoadFromFile(_fn string, _isCompile bool, _reloadInterval int) int {
 	_data, _err := os.ReadFile(_fn)
 	if _err != nil {
 		return -1
 	}
 
-	_id := _je.ReloadFromScript(-1, string(_data), _isCompile)
+	_id := _this.ReloadFromScript(-1, string(_data), _isCompile)
 	if _id >= 0 {
-		_node := _je._Nodes[_id]
+		_node := _this._Nodes[_id]
 		_node._FileName = _fn
 		_node._ReloadInterval = _reloadInterval
 		_fInfo, _ := os.Stat(_fn)
@@ -141,15 +141,15 @@ func (_je *JavaScriptExecutor) LoadFromFile(_fn string, _isCompile bool, _reload
 
 // -------------------------------------------------------------------------------------
 // Call 呼叫特定腳本節點中的 Function
-func (_je *JavaScriptExecutor) Call(_id int, _funcName string, _params ...interface{}) interface{} {
-	_je._Mutex.Lock()
-	_nodeCount := len(_je._Nodes)
+func (_this *JavaScriptExecutor) Call(_id int, _funcName string, _params ...interface{}) interface{} {
+	_this._Mutex.Lock()
+	_nodeCount := len(_this._Nodes)
 	if _id < 0 || _id >= _nodeCount {
-		_je._Mutex.Unlock()
+		_this._Mutex.Unlock()
 		return nil
 	}
-	_node := _je._Nodes[_id]
-	_je._Mutex.Unlock()
+	_node := _this._Nodes[_id]
+	_this._Mutex.Unlock()
 
 	// 檢查是否需要重新載入檔案
 	if _node._ReloadInterval > 0 && _node._FileName != "" {
@@ -158,7 +158,7 @@ func (_je *JavaScriptExecutor) Call(_id int, _funcName string, _params ...interf
 			_fInfo, _err := os.Stat(_node._FileName)
 			if _err == nil && _fInfo.Size() != _node._PrevScriptSize {
 				_data, _ := os.ReadFile(_node._FileName)
-				_je.ReloadFromScript(_node._ID, string(_data), _node._IsCompiled)
+				_this.ReloadFromScript(_node._ID, string(_data), _node._IsCompiled)
 			}
 		}
 	}
@@ -185,9 +185,9 @@ func (_je *JavaScriptExecutor) Call(_id int, _funcName string, _params ...interf
 
 // -------------------------------------------------------------------------------------
 // Execute 直接在預設環境中執行一段 JS 代碼
-func (_je *JavaScriptExecutor) Execute(_script string) interface{} {
+func (_this *JavaScriptExecutor) Execute(_script string) interface{} {
 	_vm := goja.New()
-	_je._bindDefaultCommands(_vm)
+	_this._bindDefaultCommands(_vm)
 	_res, _err := _vm.RunString(_script)
 	if _err != nil {
 		return nil

@@ -43,39 +43,37 @@ func createLogger() *LogOut {
 }
 
 // -------------------------------------------------------------------------------------
-func (_l *LogOut) SetRemoteOutput(_enable bool, _addr string) {
+func (_this *LogOut) SetRemoteOutput(_enable bool, _addr string) {
 	if !_enable {
-		if _l._UDPConn != nil {
-			_l._UDPConn.Close()
-			_l._UDPConn = nil
+		if _this._UDPConn != nil {
+			_this._UDPConn.Close()
+			_this._UDPConn = nil
 		}
 		return
 	}
-	_l._RemoteLoggerHost = _addr
-	_raddr, _err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", _l._RemoteLoggerHost, _l._RemoteLoggerPort))
+	_this._RemoteLoggerHost = _addr
+	_raddr, _err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", _this._RemoteLoggerHost, _this._RemoteLoggerPort))
 	if _err == nil {
-		_l._UDPConn, _ = net.DialUDP("udp", nil, _raddr)
+		_this._UDPConn, _ = net.DialUDP("udp", nil, _raddr)
 	}
 }
 
 // -------------------------------------------------------------------------------------
-func (_l *LogOut) Print(_level LogLevel, _msgs ...string) {
+func (_this *LogOut) Print(_maxLevel LogLevel, _msg string, _params ...any) {
 
-	_msg := ""
-
-	if _level < _l._Log_ShowLevel {
+	if _maxLevel < _this._Log_ShowLevel {
 		return
 	}
 
-	for i := 0; i < len(_msgs); i++ {
-		_msg += _msgs[i]
+	if len(_params) > 0 {
+		_msg = fmt.Sprintf(_msg, _params...)
 	}
 
 	_timeStr := time.Now().Format("01/02 15:04:05")
 	_levelStr := ""
 	_colorCode := ""
 
-	switch _level {
+	switch _maxLevel {
 	case LL_Normal:
 		_levelStr, _colorCode = "[Normal]", "\033[32m"
 	case LL_Info:
@@ -90,23 +88,23 @@ func (_l *LogOut) Print(_level LogLevel, _msgs ...string) {
 
 	_out := fmt.Sprintf("[%s]%s %s", _timeStr, _levelStr, _msg)
 
-	if _l._Log_ShowColor {
+	if _this._Log_ShowColor {
 		fmt.Printf("%s%s\033[0m\n", _colorCode, _out)
 	} else {
 		fmt.Println(_out)
 	}
 
 	// 如果有設定遠端輸出，則發送 UDP 封包
-	if _l._UDPConn != nil {
+	if _this._UDPConn != nil {
 		_pid := os.Getpid()
 		_remoteMsg := fmt.Sprintf("%d@%s", _pid, _out)
-		_l._UDPConn.Write([]byte(_remoteMsg))
+		_this._UDPConn.Write([]byte(_remoteMsg))
 	}
 }
 
 // -------------------------------------------------------------------------------------
-func (_l *LogOut) SetDisplayLevel(_level LogLevel) {
-	_l._Log_ShowLevel = _level
+func (_this *LogOut) SetDisplayLevel(_maxLevel LogLevel) {
+	_this._Log_ShowLevel = _maxLevel
 }
 
 // -------------------------------------------------------------------------------------

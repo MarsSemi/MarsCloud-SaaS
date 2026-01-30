@@ -36,47 +36,47 @@ type IMarsService interface {
 // Service CALLBACK
 // -------------------------------------------------------------------------------------
 type serviceCallback struct {
-	_ms *MarsService
+	service *MarsService
 }
 
 // -------------------------------------------------------------------------------------
-func (_cb *serviceCallback) OnConnected() {
+func (_this *serviceCallback) OnConnected() {
 	Tools.Log.Print(Tools.LL_Info, "MQTT connected")
-	_cb._ms.impl.OnMQTTConnected()
+	_this.service.impl.OnMQTTConnected()
 }
 
 // -------------------------------------------------------------------------------------
-func (_cb *serviceCallback) OnConnectionLost(_err error) {
+func (_this *serviceCallback) OnConnectionLost(_err error) {
 	Tools.Log.Print(Tools.LL_Warning, "MQTT connection lost")
-	_cb._ms.impl.OnMQTTConnectionLost(_err)
-	_cb._ms.ResetMQTTClient(_cb._ms.MQTT_Topic)
+	_this.service.impl.OnMQTTConnectionLost(_err)
+	_this.service.ResetMQTTClient(_this.service.MQTT_Topic)
 }
 
 // -------------------------------------------------------------------------------------
-func (_cb *serviceCallback) OnDeliveryComplete(_token string) {}
+func (_this *serviceCallback) OnDeliveryComplete(_token string) {}
 
 // -------------------------------------------------------------------------------------
-func (_cb *serviceCallback) OnMessageArrived(_topic string, _msg *MQTTClient.MQTTMessage) {
+func (_this *serviceCallback) OnMessageArrived(_topic string, _thisg *MQTTClient.MQTTMessage) {
 	defer func() {
 		if _r := recover(); _r != nil {
 			Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("MQTT Message Error: %v", _r))
 		}
 	}()
 
-	_payload := string(_msg.GetPayload())
+	_payload := string(_thisg.GetPayload())
 
 	// 1. 處理預設系統主題
-	if _cb._ms.MQTT_Default_Topic == _topic {
-		_cb._ms.OnDefaultMQTTMessage(_topic, _payload)
-		if _cb._ms.MQTT_Default_Topic == _cb._ms.MQTT_Topic {
-			_cb._ms.impl.OnMQTTMessage(_topic, _payload)
+	if _this.service.MQTT_Default_Topic == _topic {
+		_this.service.OnDefaultMQTTMessage(_topic, _payload)
+		if _this.service.MQTT_Default_Topic == _this.service.MQTT_Topic {
+			_this.service.impl.OnMQTTMessage(_topic, _payload)
 		}
 	} else {
 		// 2. 處理非同步任務或是具體業務主題
-		if _cb._ms.AsyncTaskProcessor != nil && strings.Contains(_topic, "/service."+strings.ToLower(_cb._ms.ServiceType)) {
-			_cb._ms.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
+		if _this.service.AsyncTaskProcessor != nil && strings.Contains(_topic, "/service."+strings.ToLower(_this.service.ServiceType)) {
+			_this.service.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
 		} else {
-			_cb._ms.impl.OnMQTTMessage(_topic, _payload)
+			_this.service.impl.OnMQTTMessage(_topic, _payload)
 		}
 	}
 }
@@ -111,19 +111,21 @@ type MarsService struct {
 	SystemStartTime      int64
 	IsDebugData          bool
 	RestartAfterConflict bool
-	SyncTimer            *time.Ticker
-	DefaultTimer         *time.Ticker // 用於 AutoGC
-	ServiceRegCheck      *time.Timer  // 檢查註冊狀態
+
+	syncTimer       *time.Ticker
+	defaultTimer    *time.Ticker // 用於 AutoGC
+	serviceRegCheck *time.Timer  // 檢查註冊狀態
 
 	stopChan chan struct{}
 
-	webHook string
-	impl    IMarsService // 指向具體的實作物件_
+	autoRestartTime MarsJSON.JSONArray
+	webHook         string
+	impl            IMarsService // 指向具體的實作物件_
 }
 
 // -------------------------------------------------------------------------------------
 func Create(_propertyFileName string, _impl IMarsService) *MarsService {
-	_ms := &MarsService{
+	_this := &MarsService{
 		PropertyFileName: _propertyFileName,
 		SystemStartTime:  time.Now().UnixMilli(),
 		ServiceInfo:      MarsJSON.NewJSONObject(""),
@@ -131,72 +133,127 @@ func Create(_propertyFileName string, _impl IMarsService) *MarsService {
 		impl:             _impl,
 	}
 
-	_ms.initCloseHook()
-	_ms.init(_propertyFileName)
+	_this.initCloseHook()
+	_this.init(_propertyFileName)
 
-	return _ms
+	return _this
 }
 
 //-------------------------------------------------------------------------------------
 // 核心初始化邏輯
 //-------------------------------------------------------------------------------------
 
-func (_ms *MarsService) init(_propertyFileName string) {
+func (_this *MarsService) init(_propertyFileName string) {
 
-	_ms.Property = MarsJSON.NewJSONObject(Tools.File2String(_propertyFileName))
+	_this.Property = MarsJSON.NewJSONObject(Tools.File2String(_propertyFileName))
 
 	// 初始化基本變數
-	_ms.defaultHttpPort = _ms.Property.OptInt("http_port", 80)
-	_ms.defaultHttpsPort = _ms.Property.OptInt("https_port", 433)
-	_ms.ssl_Key_File = _ms.Property.OptString("ssl_key", "")
-	_ms.ssl_Key_Password = _ms.Property.OptString("ssl_key_password", "")
+	_this.defaultHttpPort = _this.Property.OptInt("http_port", 80)
+	_this.defaultHttpsPort = _this.Property.OptInt("https_port", 433)
+	_this.ssl_Key_File = _this.Property.OptString("ssl_key", "")
+	_this.ssl_Key_Password = _this.Property.OptString("ssl_key_password", "")
 
-	_ms.ServiceName = _ms.Property.OptString("service_name", "Unknown Service")
-	_ms.ServiceID = fmt.Sprintf("%s-%d", Tools.GetMachineID(), _ms.defaultHttpPort)
+	_this.ServiceName = _this.Property.OptString("service_name", "Unknown Service")
+	_this.ServiceID = fmt.Sprintf("%s-%d", Tools.GetMachineID(), _this.defaultHttpPort)
 
-	_ms.webHook = _ms.Property.OptString("url_hook", "")
+	_this.webHook = _this.Property.OptString("url_hook", "")
+	_this.autoRestartTime = *_this.Property.OptJSONArray("restart_time") //["6:00:00", "14:12:24"]
 
-	_url := _ms.Property.OptString("mars_cloud_url", "")
-	_account := _ms.Property.OptString("mars_cloud_account", "")
-	_pwd := _ms.Property.OptString("mars_cloud_password", "")
-	_proj := _ms.Property.OptString("mars_cloud_proj", "")
+	_url := _this.Property.OptString("mars_cloud_url", "")
+	_account := _this.Property.OptString("mars_cloud_account", "")
+	_pwd := _this.Property.OptString("mars_cloud_password", "")
+	_proj := _this.Property.OptString("mars_cloud_proj", "")
 
 	fmt.Printf("\n------------------------------------\n")
-	fmt.Printf("\n %s \n", _ms.ServiceName)
+	fmt.Printf("\n %s \n", _this.ServiceName)
 	fmt.Printf("\n------------------------------------\n\n")
 
-	_ms.initMarsClient(_url, _account, _pwd, _proj)
-	_ms.ResetWebService()
+	Tools.Log.Print(Tools.LL_Info, "Service ID : %s", _this.ServiceID)
+	Tools.Log.Print(Tools.LL_Info, "Process ID : %d", Tools.GetPID(nil))
+
+	_this.initMarsClient(_url, _account, _pwd, _proj)
+	_this.ResetWebService()
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) Start() {
+// killProcessByPort 根據埠號找出並關閉進程 (支援 Windows, Mac, Linux)
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) killProcessByPort(_port int) {
+	var _pid string
 
-	// 檢查端口衝突
-	if Tools.IsPortInUsing(_ms.defaultHttpPort) {
-		Tools.Log.Print(Tools.LL_Warning, fmt.Sprintf("Port %d is in using", _ms.defaultHttpPort))
-		if _ms.Property.OptBoolean("conflict_restart", true) {
-			_ms.RestartService()
-		} else {
-			os.Exit(0)
+	if Tools.IsMSWindow() {
+		// Windows: 透過 netstat 找出佔用該 port 且處於 LISTENING 狀態的 PID
+		// 指令範例: netstat -ano | findstr :80 | findstr LISTENING
+		_cmd := fmt.Sprintf("netstat -ano | findstr :%d | findstr LISTENING", _port)
+		_out := Tools.ShellCMDSync(_cmd)
+		_lines := strings.Split(strings.TrimSpace(_out), "\n")
+
+		if len(_lines) > 0 && _lines[0] != "" {
+			// Windows netstat 輸出格式最後一欄位通常是 PID
+			_parts := strings.Fields(_lines[0])
+			if len(_parts) > 0 {
+				_pid = _parts[len(_parts)-1]
+			}
+		}
+
+	} else {
+		// Linux & macOS: 使用 lsof 直接取得 PID (-t 代表僅輸出 PID)
+		_cmd := fmt.Sprintf("lsof -t -i:%d", _port)
+		_pid = strings.TrimSpace(Tools.ShellCMDSync(_cmd))
+	}
+
+	// 如果有找到 PID，則執行殺掉進程的動作
+	if _pid != "" && _pid != "0" {
+		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Found PID %s occupying port %d. Killing it...", _pid, _port))
+		Tools.KillProcess(_pid)
+	}
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) checPortConflict() {
+
+	// 檢查端口衝突並嘗試自動排除
+	if Tools.IsPortInUsing(_this.defaultHttpPort) {
+		// 執行強制清理
+		_this.killProcessByPort(_this.defaultHttpPort)
+
+		// 給予作業系統短暫的時間釋放 Socket
+		time.Sleep(3 * time.Second)
+
+		// 再次檢查，如果還是被佔用，則執行原有的衝突處理邏輯
+		if Tools.IsPortInUsing(_this.defaultHttpPort) {
+			Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("Unable to clear Port %d, check permissions.", _this.defaultHttpPort))
+			if _this.Property.OptBoolean("conflict_restart", false) {
+				_this.RestartService()
+				return
+			} else {
+				os.Exit(0)
+			}
 		}
 	}
-
-	if _ms.HttpService != nil {
-
-		_ms.HttpService.SetRootPath(_ms.Property.OptString("web_path", "./website"))
-		_ms.HttpService.SetDefaultCacheControl("public, max-age=43200")
-		_ms.HttpService.Run()
-	}
-
-	_ms.ResetAutoRestart()
-	_ms.ResetAutoGC()
-
-	Tools.Log.Print(Tools.LL_Info, "Service Start : "+_ms.ServiceName)
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) initCloseHook() {
+func (_this *MarsService) Start() {
+
+	// 檢查端口衝突
+	_this.checPortConflict()
+
+	if _this.HttpService != nil {
+
+		_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
+		_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
+		_this.HttpService.Run()
+	}
+
+	_this.ResetAutoRestart()
+	_this.ResetAutoGC()
+
+	Tools.Log.Print(Tools.LL_Info, "Service Start : "+_this.ServiceName)
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) initCloseHook() {
 	// 建立一個頻道來接收作業系統訊號
 	_sigChan := make(chan os.Signal, 1)
 
@@ -210,9 +267,9 @@ func (_ms *MarsService) initCloseHook() {
 		Tools.Log.Print(Tools.LL_Info, "- ")
 		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Get Closing Singal : %v, clean up ...", _sig))
 
-		_ms.impl.BeforeServiceStop()
-		_ms.ServiceInfo.Put("is_online", false)
-		_ms.DoRegistry(false)
+		_this.impl.BeforeServiceStop()
+		_this.ServiceInfo.Put("is_online", false)
+		_this.DoRegistry(false)
 
 		Tools.Log.Print(Tools.LL_Info, "Clean up finish, process exit")
 		Tools.Log.Print(Tools.LL_Info, "- ")
@@ -223,41 +280,41 @@ func (_ms *MarsService) initCloseHook() {
 
 // -------------------------------------------------------------------------------------
 // InitMarsClient 初始化與 MarsCloud 的連線
-func (_ms *MarsService) initMarsClient(_url, _account, _pass, _proj string) {
+func (_this *MarsService) initMarsClient(_url, _account, _pass, _proj string) {
 	if _url == "" || _account == "" || _pass == "" {
 		return
 	}
 
-	if _ms.MarsClient == nil {
-		_ms.MarsClient = MarsClient.Create()
+	if _this.MarsClient == nil {
+		_this.MarsClient = MarsClient.Create()
 	}
 
 	// 嘗試登入，失敗則持續重試 (模擬 Java while 邏輯)
-	for !_ms.MarsClient.LoginWithProj(_url, _account, _pass, _proj) {
-		Tools.Log.Print(Tools.LL_Info, "MarsCloud connect fail, Retry: "+_url)
+	for !_this.MarsClient.LoginWithProj(_url, _account, _pass, _proj) {
+		Tools.Log.Print(Tools.LL_Info, "MarsCloud connect fail, Retry: %s", _url)
 		time.Sleep(5 * time.Second)
 	}
 
 	Tools.Log.Print(Tools.LL_Info, "Init MarsCloud Client: true")
 
 	// 初始化 MQTT，使用 MetaClient 取得的 Server URL
-	_ms.initMQTTClient(_ms.MarsClient.GetServerURL())
+	_this.initMQTTClient(_this.MarsClient.GetServerURL())
 }
 
 // -------------------------------------------------------------------------------------
 // DoRegistry 執行服務註冊
-func (_ms *MarsService) DoRegistry(_resetKey bool) bool {
-	if _ms.MarsClient != nil {
-		_info := _ms.ServiceInfo
+func (_this *MarsService) DoRegistry(_resetKey bool) bool {
+	if _this.MarsClient != nil {
+		_info := _this.ServiceInfo
 		// 加入 PID 資訊
 		_info.Put("pid", os.Getpid())
 
-		if _ms.MarsClient.RegistryService(_info.ToString(), _resetKey) {
-			if _ms.ServiceRegCheck != nil {
-				_ms.ServiceRegCheck.Stop()
-				_ms.ServiceRegCheck = nil
+		if _this.MarsClient.RegistryService(_info.ToString(), _resetKey) {
+			if _this.serviceRegCheck != nil {
+				_this.serviceRegCheck.Stop()
+				_this.serviceRegCheck = nil
 				// 註冊屬性配置
-				_ms.MarsClient.RegistryServiceProperties(_ms.ServiceID, _ms.Property.ToString())
+				_this.MarsClient.RegistryServiceProperties(_this.ServiceID, _this.Property.ToString())
 
 				Tools.Log.Print(Tools.LL_Info, "Service registry success")
 			}
@@ -270,67 +327,38 @@ func (_ms *MarsService) DoRegistry(_resetKey bool) bool {
 
 // -------------------------------------------------------------------------------------
 // RegistryServerInfo 註冊服務資訊 (使用 JSONObject 實作)
-func (_ms *MarsService) RegistryServerInfo(_version string, _type string, _isOnline bool) {
-	_ms.ServiceType = strings.ToLower(_type)
-	_ms.ServiceVersion = _version
+func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isOnline bool) {
+	_this.ServiceType = strings.ToLower(_type)
+	_this.ServiceVersion = _version
 
 	// 填充 ServiceInfo (JSONObject)
-	_ms.ServiceInfo.Put("id", _ms.ServiceID)
-	_ms.ServiceInfo.Put("name", _ms.ServiceName)
-	_ms.ServiceInfo.Put("version", _ms.ServiceVersion)
-	_ms.ServiceInfo.Put("type", "service."+_ms.ServiceType)
-	_ms.ServiceInfo.Put("kernel_name", "[com.mars.cloudapp.go]")
-	_ms.ServiceInfo.Put("kernel_version", "0.1.0")
-	_ms.ServiceInfo.Put("vender", "MARS")
-	_ms.ServiceInfo.Put("timestamp", _ms.SystemStartTime)
-	_ms.ServiceInfo.Put("web_hook", _ms.webHook)
-	_ms.ServiceInfo.Put("owner", _ms.MarsClient.Account)
-	_ms.ServiceInfo.Put("ip", Tools.GetLocalIPv4Address())
-	_ms.ServiceInfo.Put("mac", Tools.GetLocalMACAddress(""))
+	_this.ServiceInfo.Put("id", _this.ServiceID)
+	_this.ServiceInfo.Put("name", _this.ServiceName)
+	_this.ServiceInfo.Put("version", _this.ServiceVersion)
+	_this.ServiceInfo.Put("type", "service."+_this.ServiceType)
+	_this.ServiceInfo.Put("kernel_name", "[com.mars.cloudapp.go]")
+	_this.ServiceInfo.Put("kernel_version", "0.1.0")
+	_this.ServiceInfo.Put("vender", "MARS")
+	_this.ServiceInfo.Put("timestamp", _this.SystemStartTime)
+	_this.ServiceInfo.Put("web_hook", _this.webHook)
+	_this.ServiceInfo.Put("owner", _this.MarsClient.Account)
+	_this.ServiceInfo.Put("ip", Tools.GetLocalIPv4Address())
+	_this.ServiceInfo.Put("mac", Tools.GetLocalMACAddress(""))
 
-	_ms.ServiceInfo.Put("public", false)
-	_ms.ServiceInfo.Put("initiative", true)
-	_ms.ServiceInfo.Put("is_online", _isOnline)
+	_this.ServiceInfo.Put("public", false)
+	_this.ServiceInfo.Put("initiative", true)
+	_this.ServiceInfo.Put("is_online", _isOnline)
 
-	/*
-		_Source.put("id", _ServiceID);
-		_Source.put("name", _ServiceName);
-		_Source.put("description", _ServiceDescription);
-		_Source.put("owner", _Owner);
-		_Source.put("vender", _Vender);
-		_Source.put("version", _Version);
-		_Source.put("kernel_version", _Kernel_Version);
-		_Source.put("kernel_name", _Kernel_Name);
-		_Source.put("start_time", _StartRunningTime);
-		_Source.put("mac", _MACAddress);
-		_Source.put("white_list", _whiteList);
-		_Source.put("host", _Host);
-		_Source.put("type", _Type);
-		_Source.put("web_hook", _WebHook);
-		_Source.put("directory", _Directory.replaceAll("\\\\", "/"));
-		_Source.put("vid", _VID);
-		_Source.put("timestamp", _StartRunningTimeStamp);
-		_Source.put("city", _City);
-		_Source.put("auth_due_date", _AuthDueDate);
-		_Source.put("auth_target", _AuthTarget);
-		_Source.put("lat", _Lat);
-		_Source.put("lng", _Lng);
-		_Source.put("enable_white_list", _IsEnableWhiteList);
-		_Source.put("public", _IsPublic);
-		_Source.put("online", _IsOnline);
-		_Source.put("initiative", _IsInitiative);
-	*/
-
-	Tools.Log.Print(Tools.LL_Info, "Service Registered: "+_version)
+	Tools.Log.Print(Tools.LL_Info, "Service Registered: %s", _version)
 
 	// 定時同步 (Heartbeat)
-	_ms.SyncTimer = time.NewTicker(20 * time.Second)
+	_this.syncTimer = time.NewTicker(20 * time.Second)
 	go func() {
 		for {
 			select {
-			case <-_ms.SyncTimer.C:
-				_ms.DoRegistry(false)
-			case <-_ms.stopChan:
+			case <-_this.syncTimer.C:
+				_this.DoRegistry(false)
+			case <-_this.stopChan:
 				return
 			}
 		}
@@ -340,10 +368,11 @@ func (_ms *MarsService) RegistryServerInfo(_version string, _type string, _isOnl
 // -------------------------------------------------------------------------------------
 // MarsService MQTT 核心方法
 // -------------------------------------------------------------------------------------
-// InitMQTTClient 初始化 MQTT 連線設定
-func (_ms *MarsService) initMQTTClient(_url string) {
 
-	if _url == "" || _ms.MarsClient.AuthToken == "" {
+// InitMQTTClient 初始化 MQTT 連線設定
+func (_this *MarsService) initMQTTClient(_url string) {
+
+	if _url == "" || _this.MarsClient.AuthToken == "" {
 		Tools.Log.Print(Tools.LL_Warning, "MQTT Init FAIL: URL or Token is empty")
 		return
 	}
@@ -359,28 +388,28 @@ func (_ms *MarsService) initMQTTClient(_url string) {
 	}
 
 	// 2. 設定專案 ID 與主題
-	_topicID := _ms.MarsClient.ProjID
+	_topicID := _this.MarsClient.ProjID
 	if _topicID == "" {
-		_topicID = _ms.MarsClient.Account
+		_topicID = _this.MarsClient.Account
 	}
 
-	_topic := _ms.Property.OptString("mqtt_topic", _topicID+"/+/#")
+	_topic := _this.Property.OptString("mqtt_topic", _topicID+"/+/#")
 	if _topic == "" {
 		Tools.Log.Print(Tools.LL_Warning, "MQTT is disabled: topic is empty")
 		return
 	}
 
-	_ms.MQTT_Default_Topic = _topicID + "/event/" + _ms.ServiceID
-	_ms.MQTT_AsyncTask_Topic = _topicID + "/service." + strings.ToLower(_ms.ServiceType) + "/+"
+	_this.MQTT_Default_Topic = _topicID + "/event/" + _this.ServiceID
+	_this.MQTT_AsyncTask_Topic = _topicID + "/service." + strings.ToLower(_this.ServiceType) + "/+"
 
 	// 3. 建立連線選項
 	_opts := MQTTClient.NewMQTTConnectOptions()
 	_opts.SetServer(_url)
 	_opts.SetCleanSession(true)
 	_opts.SetAutomaticReconnect(true)
-	_opts.SetUserName(_ms.MarsClient.Account)
-	_opts.SetClientID(_ms.MarsClient.AuthToken)
-	_opts.SetPassword([]byte(_ms.MarsClient.AuthToken))
+	_opts.SetUserName(_this.MarsClient.Account)
+	_opts.SetClientID(_this.MarsClient.AuthToken)
+	_opts.SetPassword([]byte(_this.MarsClient.AuthToken))
 	_opts.SetKeepAliveInterval(30)
 	_opts.SetConnectionTimeout(10)
 
@@ -390,26 +419,26 @@ func (_ms *MarsService) initMQTTClient(_url string) {
 	_mqttClient, _err := MQTTClient.Create()
 
 	if _err != nil {
-		Tools.Log.Print(Tools.LL_Error, "Create MQTT Client Fail : "+_err.Error())
+		Tools.Log.Print(Tools.LL_Error, "Create MQTT Client Fail : %s", _err.Error())
 		return
 	}
 
-	_ms.MQTTClient = _mqttClient
-	_ms.MQTTClient.SetCallback(&serviceCallback{_ms: _ms})
+	_this.MQTTClient = _mqttClient
+	_this.MQTTClient.SetCallback(&serviceCallback{service: _this})
 
 	// 5. 執行連線
-	if _err := _ms.MQTTClient.Connect(_opts); _err != nil {
-		Tools.Log.Print(Tools.LL_Error, "MQTT Connect Fail : "+_err.Error())
+	if _err := _this.MQTTClient.Connect(_opts); _err != nil {
+		Tools.Log.Print(Tools.LL_Error, "MQTT Connect Fail : %s", _err.Error())
 		return
 	}
 
-	_ms.ResetMQTTClient(_topic)
+	_this.ResetMQTTClient(_topic)
 }
 
 // -------------------------------------------------------------------------------------
 // ResetMQTTClient 重新整理訂閱主題
-func (_ms *MarsService) ResetMQTTClient(_topic string) {
-	if _ms.MQTTClient == nil {
+func (_this *MarsService) ResetMQTTClient(_topic string) {
+	if _this.MQTTClient == nil {
 		return
 	}
 
@@ -418,15 +447,15 @@ func (_ms *MarsService) ResetMQTTClient(_topic string) {
 		defer func() { recover() }()
 
 		if _topic == "" {
-			_ms.MQTTClient.Disconnect(250)
-			_ms.MQTT_Topic = ""
+			_this.MQTTClient.Disconnect(250)
+			_this.MQTT_Topic = ""
 			return
 		}
 
 		// 模擬 Java 版的重連與主題重整邏輯
 		_tick := 0
 		for {
-			if _ms.MQTTClient.IsConnected() {
+			if _this.MQTTClient.IsConnected() {
 				break
 			}
 			time.Sleep(1 * time.Second)
@@ -437,22 +466,22 @@ func (_ms *MarsService) ResetMQTTClient(_topic string) {
 			}
 		}
 
-		if _ms.MQTTClient.IsConnected() {
-			_ms.impl.OnMQTTConnected()
+		if _this.MQTTClient.IsConnected() {
+			_this.impl.OnMQTTConnected()
 
 			// 訂閱必要主題
-			_ms.MQTTClient.Subscribe(_ms.MQTT_Default_Topic, 0)
-			_ms.MQTTClient.Subscribe(_ms.MQTT_AsyncTask_Topic, 0)
+			_this.MQTTClient.Subscribe(_this.MQTT_Default_Topic, 0)
+			_this.MQTTClient.Subscribe(_this.MQTT_AsyncTask_Topic, 0)
 
-			if _ms.MQTT_Default_Topic != _topic {
-				_ms.MQTTClient.Subscribe(_topic, 0)
+			if _this.MQTT_Default_Topic != _topic {
+				_this.MQTTClient.Subscribe(_topic, 0)
 			}
 
-			_ms.MQTT_Topic = _topic
-			Tools.Log.Print(Tools.LL_Debug, "MQTT current Topic : "+_ms.MQTT_Topic)
+			_this.MQTT_Topic = _topic
+			Tools.Log.Print(Tools.LL_Debug, "MQTT current Topic : %s", _this.MQTT_Topic)
 		}
 
-		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("MQTT connection status : %v", _ms.MQTTClient.IsConnected()))
+		Tools.Log.Print(Tools.LL_Info, "MQTT connection status : %v", _this.MQTTClient.IsConnected())
 	}()
 }
 
@@ -461,32 +490,32 @@ func (_ms *MarsService) ResetMQTTClient(_topic string) {
 //-------------------------------------------------------------------------------------
 
 // OnDefaultMQTTMessage 處理系統預設命令
-func (_ms *MarsService) OnDefaultMQTTMessage(_topic, _payload string) {
-	_msgObj := MarsJSON.NewJSONObject(_payload)
+func (_this *MarsService) OnDefaultMQTTMessage(_topic, _payload string) {
+	_thisgObj := MarsJSON.NewJSONObject(_payload)
 	// 取得 values 陣列中的第一個指令
-	_values := _msgObj.OptJSONArray("values")
+	_values := _thisgObj.OptJSONArray("values")
 	if _values != nil && _values.Length() > 0 {
 		_cmdObj := _values.OptJSONObject(0)
 		_cmd := _cmdObj.OptString("cmd", "")
 
 		switch _cmd {
 		case "reboot":
-			_ms.RestartService()
+			_this.RestartService()
 		case "shutdown":
-			_ms.ShutdownService()
+			_this.ShutdownService()
 		case "reset_properties":
-			_ms.ModifyProperties(_cmdObj.OptString("properties", ""))
+			_this.ModifyProperties(_cmdObj.OptString("properties", ""))
 		}
 	}
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) ModifyProperties(_payload string) {
+func (_this *MarsService) ModifyProperties(_payload string) {
 	if _payload != "" {
 		// 儲存新的設定檔
-		os.WriteFile(_ms.PropertyFileName, []byte(_payload), 0644)
+		os.WriteFile(_this.PropertyFileName, []byte(_payload), 0644)
 		Tools.Log.Print(Tools.LL_Info, "Properties updated, restarting...")
-		_ms.RestartService()
+		_this.RestartService()
 	}
 }
 
@@ -495,49 +524,52 @@ func (_ms *MarsService) ModifyProperties(_payload string) {
 //-------------------------------------------------------------------------------------
 
 // ResetWebService 初始化或更新 Web 服務設定
-func (_ms *MarsService) ResetWebService() {
-	_method := _ms.Property.OptString("web_thread_method", "fixed")
-	_coreSize := _ms.Property.OptInt("web_core_count", 0)
-	_maxSize := _ms.Property.OptInt("web_thread_count", 500)
-	_timeout := _ms.Property.OptInt("web_thread_timeout", 500)
+func (_this *MarsService) ResetWebService() {
 
-	if _ms.HttpService != nil {
+	_method := _this.Property.OptString("web_thread_method", "fixed")
+	_coreSize := _this.Property.OptInt("web_core_count", 0)
+	_maxSize := _this.Property.OptInt("web_thread_count", 500)
+	_timeout := _this.Property.OptInt("web_thread_timeout", 500)
+
+	if _this.HttpService != nil {
 		// 如果服務已存在，更新其 Executor 設定
-		_ms.HttpService.InitExecutor(true, _method, _coreSize, _maxSize, _timeout)
+		_this.HttpService.InitExecutor(true, _method, _coreSize, _maxSize, _timeout)
 
 	} else {
 		// 建立新的 HttpService 實例
-		_ms.HttpService = HttpService.Create(
-			_ms.defaultHttpPort,
-			_ms.defaultHttpsPort,
-			_ms.ssl_Key_File,
-			_ms.ssl_Key_Password,
+		_this.HttpService = HttpService.Create(
+			_this.defaultHttpPort,
+			_this.defaultHttpsPort,
+			_this.ssl_Key_File,
+			_this.ssl_Key_Password,
 		)
 		// 初始化執行緒池邏輯 (在 Go 中主要為設定參數)
-		_ms.HttpService.InitExecutor(false, _method, _coreSize, _maxSize, _timeout)
+		_this.HttpService.InitExecutor(false, _method, _coreSize, _maxSize, _timeout)
 	}
 
-	Tools.Log.Print(Tools.LL_Debug, fmt.Sprintf("Reset Web Service : %d/%d", _ms.defaultHttpPort, _ms.defaultHttpsPort))
-	//Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Set Web Thread : %s -> %d/%d", _method, _coreSize, _maxSize))
+	_this.AddRestfulAPI("/system", HttpService.CreateHttpAPI_System(_this))
+
+	Tools.Log.Print(Tools.LL_Debug, "Reset Web Service : %d/%d", _this.defaultHttpPort, _this.defaultHttpsPort)
+	//Tools.Log.Print(Tools.LL_Info, "Set Web Thread : %s -> %d/%d", _method, _coreSize, _maxSize)
 }
 
 // -------------------------------------------------------------------------------------
 // AddRestfulAPI 動態增加 API 路由
-func (_ms *MarsService) AddRestfulAPI(_uri string, _callback HttpService.HttpAPI_Callback) {
+func (_this *MarsService) AddRestfulAPI(_uri string, _callback HttpService.HttpAPI_Callback) {
 
 	if _uri != "" && _callback != nil {
-		if _ms.HttpService != nil {
-			_ms.HttpService.AddRestfulAPI(_uri, _callback)
+		if _this.HttpService != nil {
+			_this.HttpService.AddRestfulAPI(_uri, _callback)
 		}
 	}
 }
 
 // -------------------------------------------------------------------------------------
 // RemoveRestfulAPI 移除指定的 API 路由
-func (_ms *MarsService) RemoveRestfulAPI(_uri string) {
+func (_this *MarsService) RemoveRestfulAPI(_uri string) {
 	if _uri != "" {
-		if _ms.HttpService != nil {
-			_ms.HttpService.RemoveRestfulAPI(_uri)
+		if _this.HttpService != nil {
+			_this.HttpService.RemoveRestfulAPI(_uri)
 		}
 	}
 }
@@ -547,45 +579,45 @@ func (_ms *MarsService) RemoveRestfulAPI(_uri string) {
 //-------------------------------------------------------------------------------------
 
 // GetWebHook 獲取當前 Web 服務的 Hook 地址
-func (_ms *MarsService) GetWebHook() string {
+func (_this *MarsService) GetWebHook() string {
 
-	_ip := _ms.ServiceInfo.OptString("ip", "")
+	_ip := _this.ServiceInfo.OptString("ip", "")
 
-	if _ms.webHook != "" {
-		return strings.Replace(strings.Replace(_ms.webHook, "127.0.0.0", _ip, 1), "localhost", _ip, 1)
+	if _this.webHook != "" {
+		return strings.Replace(strings.Replace(_this.webHook, "127.0.0.0", _ip, 1), "localhost", _ip, 1)
 	}
 
-	return fmt.Sprintf("http://%s:%d", _ip, _ms.defaultHttpPort)
+	return fmt.Sprintf("http://%s:%d", _ip, _this.defaultHttpPort)
 }
 
 // ------------------------------------------------------------------------------------
-func (_ms *MarsService) GetProperty() *MarsJSON.JSONObject {
-	if _ms.Property != nil {
-		return _ms.Property
+func (_this *MarsService) GetProperty() *MarsJSON.JSONObject {
+	if _this.Property != nil {
+		return _this.Property
 	}
 
 	return MarsJSON.NewJSONObject("{}")
 }
 
 // ------------------------------------------------------------------------------------
-func (_ms *MarsService) MergePropertyFrom(_ext *MarsJSON.JSONObject) {
-	if _ms.Property != nil {
-		_ms.Property.MergeFrom(_ext)
+func (_this *MarsService) MergePropertyFrom(_ext *MarsJSON.JSONObject) {
+	if _this.Property != nil {
+		_this.Property.MergeFrom(_ext)
 	}
 }
 
 // ------------------------------------------------------------------------------------
-func (_ms *MarsService) OnUpdateProperty() {
+func (_this *MarsService) OnUpdateProperty() {
 
-	if _ms.impl != nil {
+	if _this.impl != nil {
 
-		_ms.impl.OnPropertyChange(_ms.Property)
+		_this.impl.OnPropertyChange(_this.Property)
 	}
 }
 
 // ------------------------------------------------------------------------------------
 // SendRespone 靜態工具的服務層包裝
-func (_ms *MarsService) SendRespone(_w http.ResponseWriter, _no int, _contentType string, _content []byte) {
+func (_this *MarsService) SendRespone(_w http.ResponseWriter, _no int, _contentType string, _content []byte) {
 	HttpService.SendRespone(_w, _no, _contentType, _content)
 }
 
@@ -594,12 +626,12 @@ func (_ms *MarsService) SendRespone(_w http.ResponseWriter, _no int, _contentTyp
 //-------------------------------------------------------------------------------------
 
 // ResetAutoGC 設定自動記憶體回收
-func (_ms *MarsService) ResetAutoGC() {
-	_gcInterval := _ms.Property.OptInt("auto_gc", 1800) // 預設 30 分鐘
+func (_this *MarsService) ResetAutoGC() {
+	_gcInterval := _this.Property.OptInt("auto_gc", 1800) // 預設 30 分鐘
 	if _gcInterval > 0 {
-		_ms.DefaultTimer = time.NewTicker(time.Duration(_gcInterval) * time.Second)
+		_this.defaultTimer = time.NewTicker(time.Duration(_gcInterval) * time.Second)
 		go func() {
-			for range _ms.DefaultTimer.C {
+			for range _this.defaultTimer.C {
 				runtime.GC()
 				Tools.Log.Print(Tools.LL_Debug, "System GC executed")
 			}
@@ -610,29 +642,98 @@ func (_ms *MarsService) ResetAutoGC() {
 // -------------------------------------------------------------------------------------
 // 重啟管理
 // -------------------------------------------------------------------------------------
+func (_this *MarsService) RestartService() {
 
-func (_ms *MarsService) RestartService() {
+	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to restart...")
+
+	// 1. 執行停止前的清理邏輯
+	if _this.impl != nil {
+		_this.impl.BeforeServiceStop()
+	}
+
+	// 2. 通知雲端服務目前為離線狀態並執行最後一次註冊同步
+	if _this.ServiceInfo != nil {
+		_this.ServiceInfo.Put("is_online", false)
+		_this.DoRegistry(false)
+	}
+
+	// 3. 關閉網路連線資源
+	_this.CloseNetService()
+
+	// 4. 呼叫 Tools 中的實體重啟邏輯
+	_err := Tools.RestartItSelf()
+
+	if _err != nil {
+		Tools.Log.Print(Tools.LL_Error, "Restart failed: %s", _err.Error())
+		return
+	}
+
+	// 5. 成功啟動新程序後，退出當前程序
+	os.Exit(0)
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) ResetAutoRestart() {
+// ResetAutoRestart 初始化自動定時重啟任務
+func (_this *MarsService) ResetAutoRestart() {
+
+	// 如果沒有設定重啟時間，則直接返回
+	if _this.autoRestartTime.Length() <= 0 {
+		return
+	}
+
+	Tools.Log.Print(Tools.LL_Info, "Auto restart at : %v", _this.autoRestartTime.ToString())
+
+	// 開啟一個 Goroutine 定時檢查時間
+	go func() {
+		_ticker := time.NewTicker(1 * time.Second)
+		defer _ticker.Stop()
+
+		for {
+			select {
+			case <-_ticker.C:
+				_uptime := time.Now().UnixMilli() - _this.SystemStartTime
+
+				// 若運作未滿 60 秒 (60,000 ms)，跳過此次檢查，避免重複重啟循環
+				if _uptime < 60000 {
+					continue
+				}
+
+				// 獲取當前時間字串 (格式如 "14:30:00")
+				_currentTime := time.Now().Format("15:04:05")
+
+				// 遍歷 JSONArray 檢查是否有匹配的時間點
+				for _i := 0; _i < _this.autoRestartTime.Length(); _i++ {
+					_targetTime := _this.autoRestartTime.OptString(_i, "")
+
+					if _currentTime == _targetTime {
+						Tools.Log.Print(Tools.LL_Warning, "Restart time reached: "+_targetTime)
+						_this.RestartService()
+						return // 觸發重啟後結束此監控
+					}
+				}
+			case <-_this.stopChan:
+				// 接收到停止訊號則結束監控
+				return
+			}
+		}
+	}()
 }
 
 //-------------------------------------------------------------------------------------
 // 功能包裝 (Wrappers)
 //-------------------------------------------------------------------------------------
 
-func (_ms *MarsService) PutData(_uuid, _suid string, _data *MarsJSON.JSONObject) bool {
-	if _ms.MarsClient != nil {
-		return _ms.MarsClient.PutData(_uuid, _suid, _data)
+func (_this *MarsService) PutData(_uuid, _suid string, _data *MarsJSON.JSONObject) bool {
+	if _this.MarsClient != nil {
+		return _this.MarsClient.PutData(_uuid, _suid, _data)
 	}
 	return false
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) PushLineMessage(_target, _msg string) bool {
-	if _ms.MarsClient != nil {
-		//return _ms.MarsClient.PushLineMessage(_target, _msg)
+func (_this *MarsService) PushLineMessage(_target, _thisg string) bool {
+	if _this.MarsClient != nil {
+		//return _this.MarsClient.PushLineMessage(_target, _thisg)
 	}
 	return false
 }
@@ -641,22 +742,22 @@ func (_ms *MarsService) PushLineMessage(_target, _msg string) bool {
 // 關閉邏輯
 //-------------------------------------------------------------------------------------
 
-func (_ms *MarsService) StopService() bool {
-	_ms.CloseNetService()
+func (_this *MarsService) StopService() bool {
+	_this.CloseNetService()
 	Tools.Log.Print(Tools.LL_Info, "Service Stoped")
 	return true
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) ShutdownService() {
-	_ms.StopService()
+func (_this *MarsService) ShutdownService() {
+	_this.StopService()
 	os.Exit(0)
 }
 
 // -------------------------------------------------------------------------------------
-func (_ms *MarsService) CloseNetService() {
-	if _ms.MQTTClient != nil {
-		_ms.MQTTClient.Disconnect(250)
+func (_this *MarsService) CloseNetService() {
+	if _this.MQTTClient != nil {
+		_this.MQTTClient.Disconnect(250)
 	}
 	Tools.Log.Print(Tools.LL_Info, "Network services closed")
 }

@@ -18,8 +18,8 @@ type MQTTMessage struct {
 }
 
 // -------------------------------------------------------------------------------------
-func (_m *MQTTMessage) GetPayload() []byte   { return _m._Payload }
-func (_m *MQTTMessage) SetPayload(_p []byte) { _m._Payload = _p }
+func (_this *MQTTMessage) GetPayload() []byte   { return _this._Payload }
+func (_this *MQTTMessage) SetPayload(_p []byte) { _this._Payload = _p }
 
 //-------------------------------------------------------------------------------------
 // MQTTCallback 模擬 org.eclipse.paho.client.MQTTv3.MQTTCallback 介面
@@ -77,18 +77,18 @@ type MQTTClient struct {
 
 // -------------------------------------------------------------------------------------
 func Create() (*MQTTClient, error) {
-	_mc := &MQTTClient{}
+	_thisc := &MQTTClient{}
 
-	return _mc, nil
+	return _thisc, nil
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MQTTClient) SetCallback(_cb MQTTCallback) {
-	_mc._Callback = _cb
+func (_thisc *MQTTClient) SetCallback(_cb MQTTCallback) {
+	_thisc._Callback = _cb
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
+func (_thisc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 
 	_opts := mqtt.NewClientOptions()
 
@@ -104,25 +104,25 @@ func (_mc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 
 	// 設定連線遺失回調
 	_opts.OnConnectionLost = func(_c mqtt.Client, _err error) {
-		if _mc._Callback != nil {
-			_mc._Callback.OnConnectionLost(_err)
+		if _thisc._Callback != nil {
+			_thisc._Callback.OnConnectionLost(_err)
 		}
 	}
 
 	// 設定預設訊息處理 (用於 Subscribe 時沒指定處理器的情況)
-	_opts.DefaultPublishHandler = func(_c mqtt.Client, _m mqtt.Message) {
-		if _mc._Callback != nil {
-			_msg := &MQTTMessage{
-				_Payload:  _m.Payload(),
-				_Qos:      _m.Qos(),
-				_Retained: _m.Retained(),
+	_opts.DefaultPublishHandler = func(_c mqtt.Client, _this mqtt.Message) {
+		if _thisc._Callback != nil {
+			_thissg := &MQTTMessage{
+				_Payload:  _this.Payload(),
+				_Qos:      _this.Qos(),
+				_Retained: _this.Retained(),
 			}
-			_mc._Callback.OnMessageArrived(_m.Topic(), _msg)
+			_thisc._Callback.OnMessageArrived(_this.Topic(), _thissg)
 		}
 	}
 
-	_mc._Client = mqtt.NewClient(_opts)
-	if _token := _mc._Client.Connect(); _token.Wait() && _token.Error() != nil {
+	_thisc._Client = mqtt.NewClient(_opts)
+	if _token := _thisc._Client.Connect(); _token.Wait() && _token.Error() != nil {
 		return _token.Error()
 	}
 
@@ -130,28 +130,28 @@ func (_mc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MQTTClient) Subscribe(_topic string, _qos int) error {
-	if _token := _mc._Client.Subscribe(_topic, byte(_qos), nil); _token.Wait() && _token.Error() != nil {
+func (_thisc *MQTTClient) Subscribe(_topic string, _qos int) error {
+	if _token := _thisc._Client.Subscribe(_topic, byte(_qos), nil); _token.Wait() && _token.Error() != nil {
 		return _token.Error()
 	}
 	return nil
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MQTTClient) Publish(_topic string, _message *MQTTMessage) error {
-	_token := _mc._Client.Publish(_topic, _message._Qos, _message._Retained, _message._Payload)
+func (_thisc *MQTTClient) Publish(_topic string, _thisessage *MQTTMessage) error {
+	_token := _thisc._Client.Publish(_topic, _thisessage._Qos, _thisessage._Retained, _thisessage._Payload)
 	_token.Wait()
 	return _token.Error()
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MQTTClient) Disconnect(_quiesce int) {
-	_mc._Client.Disconnect(uint(_quiesce))
+func (_thisc *MQTTClient) Disconnect(_quiesce int) {
+	_thisc._Client.Disconnect(uint(_quiesce))
 }
 
 // -------------------------------------------------------------------------------------
-func (_mc *MQTTClient) IsConnected() bool {
-	return _mc._Client.IsConnected()
+func (_thisc *MQTTClient) IsConnected() bool {
+	return _thisc._Client.IsConnected()
 }
 
 // -------------------------------------------------------------------------------------

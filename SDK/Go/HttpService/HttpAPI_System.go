@@ -31,32 +31,32 @@ func CreateHttpAPI_System(_service IServiceControl) *HttpAPI_System {
 
 // -------------------------------------------------------------------------------------
 // GetSetting 獲取當前服務設定
-func (_h *HttpAPI_System) GetSetting() string {
-	if _h._Service != nil && _h._Service.GetProperty() != nil {
+func (_this *HttpAPI_System) GetSetting() string {
+	if _this._Service != nil && _this._Service.GetProperty() != nil {
 		// 將屬性轉換為 JSON 字串
-		return _h._Service.GetProperty().ToString()
+		return _this._Service.GetProperty().ToString()
 	}
 	return "{}"
 }
 
 // -------------------------------------------------------------------------------------
 // UpdateSetting 更新服務設定
-func (_h *HttpAPI_System) UpdateSetting(_body string) string {
+func (_this *HttpAPI_System) UpdateSetting(_body string) string {
 
 	_payload := string(_body)
 	_info := MarsJSON.NewJSONObject(_payload)
 
-	if _h._Service != nil {
+	if _this._Service != nil {
 		// 合併並更新屬性
-		_h._Service.MergePropertyFrom(_info)
-		_h._Service.OnUpdateProperty()
+		_this._Service.MergePropertyFrom(_info)
+		_this._Service.OnUpdateProperty()
 		return "ok"
 	}
 	return "fail"
 }
 
 // -------------------------------------------------------------------------------------
-func (_h *HttpAPI_System) Process(_w http.ResponseWriter, _r *http.Request, _jwt *MarsJSON.JSONObject, _path []string, _params *MarsJSON.JSONObject, _body string) []byte {
+func (_this *HttpAPI_System) Process(_w http.ResponseWriter, _r *http.Request, _jwt *MarsJSON.JSONObject, _path []string, _params *MarsJSON.JSONObject, _body string) []byte {
 
 	_resp := ""
 	_cmd := _path[len(_path)-1]
@@ -64,22 +64,22 @@ func (_h *HttpAPI_System) Process(_w http.ResponseWriter, _r *http.Request, _jwt
 	switch _cmd {
 
 	case "restart":
-		if _h._Service != nil {
-			_h._Service.RestartService() // 執行重啟
+		if _this._Service != nil {
+			_this._Service.RestartService() // 執行重啟
 			return []byte("ok")
 		}
 
 	case "shutdown":
-		if _h._Service != nil {
-			_h._Service.ShutdownService() // 執行關閉
+		if _this._Service != nil {
+			_this._Service.ShutdownService() // 執行關閉
 			return []byte("ok")
 		}
 
 	case "get_setting":
-		_resp = _h.GetSetting()
+		_resp = _this.GetSetting()
 
 	case "update_setting":
-		_resp = _h.UpdateSetting(_body)
+		_resp = _this.UpdateSetting(_body)
 
 	}
 

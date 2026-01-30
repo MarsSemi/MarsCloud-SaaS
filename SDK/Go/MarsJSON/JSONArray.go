@@ -56,22 +56,22 @@ func NewJSONArray(_input interface{}) *JSONArray {
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) Put(_value interface{}) *JSONArray {
+func (_this *JSONArray) Put(_value interface{}) *JSONArray {
 	switch _v := _value.(type) {
 	case *JSONObject:
-		_ja._Src = append(_ja._Src, _v._Src)
+		_this._Src = append(_this._Src, _v._Src)
 	case *JSONArray:
-		_ja._Src = append(_ja._Src, _v._Src)
+		_this._Src = append(_this._Src, _v._Src)
 	default:
-		_ja._Src = append(_ja._Src, _value)
+		_this._Src = append(_this._Src, _value)
 	}
-	return _ja
+	return _this
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) OptJSONObject(_index int) *JSONObject {
-	if _index >= 0 && _index < len(_ja._Src) {
-		if _m, _ok := _ja._Src[_index].(map[string]interface{}); _ok {
+func (_this *JSONArray) OptJSONObject(_index int) *JSONObject {
+	if _index >= 0 && _index < len(_this._Src) {
+		if _m, _ok := _this._Src[_index].(map[string]interface{}); _ok {
 			return NewJSONObject(_m)
 		}
 	}
@@ -79,46 +79,46 @@ func (_ja *JSONArray) OptJSONObject(_index int) *JSONObject {
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) OptString(_index int, _defaultValue string) string {
-	if _index >= 0 && _index < len(_ja._Src) {
-		return fmt.Sprintf("%v", _ja._Src[_index])
+func (_this *JSONArray) OptString(_index int, _defaultValue string) string {
+	if _index >= 0 && _index < len(_this._Src) {
+		return fmt.Sprintf("%v", _this._Src[_index])
 	}
 	return _defaultValue
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) Opt(_index int) any {
-	if _index >= 0 && _index < len(_ja._Src) {
-		return _ja._Src[_index]
+func (_this *JSONArray) Opt(_index int) any {
+	if _index >= 0 && _index < len(_this._Src) {
+		return _this._Src[_index]
 	}
 
 	return nil
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) Remove(_index int) interface{} {
-	if _ja._Src == nil || _index < 0 || _index >= len(_ja._Src) {
+func (_this *JSONArray) Remove(_index int) interface{} {
+	if _this._Src == nil || _index < 0 || _index >= len(_this._Src) {
 		return nil
 	}
 
 	// 取得要被移除的元素
-	_val := _ja._Src[_index]
+	_val := _this._Src[_index]
 
 	// 執行切片移除邏輯：將 index 之前與之後的元素重新合併
-	// 寫法等同於：_ja._Src = append(_ja._Src[:_index], _ja._Src[_index+1:]...)
-	_ja._Src = append(_ja._Src[:_index], _ja._Src[_index+1:]...)
+	// 寫法等同於：_this._Src = append(_this._Src[:_index], _this._Src[_index+1:]...)
+	_this._Src = append(_this._Src[:_index], _this._Src[_index+1:]...)
 
 	return _val
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) Length() int {
-	return len(_ja._Src)
+func (_this *JSONArray) Length() int {
+	return len(_this._Src)
 }
 
 // -------------------------------------------------------------------------------------
-func (_ja *JSONArray) ToString() string {
-	_b, _ := json.Marshal(_ja._Src)
+func (_this *JSONArray) ToString() string {
+	_b, _ := json.Marshal(_this._Src)
 	return string(_b)
 }
 

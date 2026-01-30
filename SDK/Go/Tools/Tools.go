@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 // -------------------------------------------------------------------------------------
@@ -610,6 +612,7 @@ func RestartItSelf() error {
 	cmd := exec.Command(self, args[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	return cmd.Start()
 }
 
@@ -1064,47 +1067,81 @@ func SendEMailAttachment(_sender map[string]interface{}, _to string, _subject st
 // -------------------------------------------------------------------------------------
 // 系統效能監控
 // -------------------------------------------------------------------------------------
-func GetProcessMemoryUsage() int64 {
+func GetProcessMemoryUsage() uint32 {
 	var _m runtime.MemStats
 	runtime.ReadMemStats(&_m)
-	return int64(_m.Alloc / 1024 / 1024)
+	return uint32(_m.Sys / 1024 / 1024)
 }
 
 // -------------------------------------------------------------------------------------
-func GetSystemMemoryUsage() int64 {
-	var _m runtime.MemStats
-	runtime.ReadMemStats(&_m)
-	return int64(_m.Sys / 1024 / 1024)
+func GetSystemMemoryState() *mem.VirtualMemoryStat {
+
+	_v, _ := mem.VirtualMemory()
+
+	return _v
+}
+
+// -------------------------------------------------------------------------------------
+func GetSystemMemoryUsage() uint32 {
+
+	_v := GetSystemMemoryState()
+
+	return uint32(_v.Used / 1024 / 1024)
 }
 
 // -------------------------------------------------------------------------------------
 func GetSystemCPUUsage() float64 {
+
 	_os := runtime.GOOS
+
 	var _out []byte
 	var _err error
 
-	if _os == "windows" {
-		// Windows 使用 wmic 獲取負載百分比
-		_out, _err = exec.Command("wmic", "cpu", "get", "loadpercentage").Output()
-		if _err == nil {
-			_lines := strings.Split(string(_out), "\n")
-			if len(_lines) >= 2 {
-				_val := strings.TrimSpace(_lines[1])
-				_usage, _ := strconv.ParseFloat(_val, 64)
-				return _usage
+	switch _os {
+
+	case "windows":
+		{
+			// Windows 使用 wmic 獲取負載百分比
+			_out, _err = exec.Command("wmic", "cpu", "get", "loadpercentage").Output()
+			if _err == nil {
+				_lines := strings.Split(string(_out), "\n")
+				if len(_lines) >= 2 {
+					_val := strings.TrimSpace(_lines[1])
+					_usage, _ := strconv.ParseFloat(_val, 64)
+					return _usage
+				}
 			}
 		}
-	} else {
-		// Linux/macOS 透過 top 指令獲取 (簡化處理)
-		// 這裡取一個時間點的閒置率來計算
-		_out, _err = exec.Command("sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $8}'").Output()
-		if _err == nil {
-			_idleStr := strings.TrimSpace(string(_out))
-			_idleStr = strings.ReplaceAll(_idleStr, ",", ".") // 處理部分系統逗點小數
-			_idle, _ := strconv.ParseFloat(_idleStr, 64)
-			return 100.0 - _idle
+
+	case "darwin":
+		{
+			_out, _err = exec.Command("sh", "-c", "top -l 1 | grep \"CPU usage\" | awk '{print $7}'").Output()
+			if _err == nil {
+
+				_idleStr := strings.TrimSpace(string(_out))
+				_idleStr = strings.ReplaceAll(_idleStr, "%", "")
+				_idleStr = strings.ReplaceAll(_idleStr, ",", ".") // 處理部分系統逗點小數
+				_idle, _ := strconv.ParseFloat(_idleStr, 64)
+
+				return 100.0 - _idle
+			}
+		}
+
+	default:
+		{
+			// Linux/macOS 透過 top 指令獲取 (簡化處理)
+			// 這裡取一個時間點的閒置率來計算
+			_out, _err = exec.Command("sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $8}'").Output()
+			if _err == nil {
+				_idleStr := strings.TrimSpace(string(_out))
+				_idleStr = strings.ReplaceAll(_idleStr, "%", "")
+				_idleStr = strings.ReplaceAll(_idleStr, ",", ".") // 處理部分系統逗點小數
+				_idle, _ := strconv.ParseFloat(_idleStr, 64)
+				return 100.0 - _idle
+			}
 		}
 	}
+
 	return 0.0
 }
 
