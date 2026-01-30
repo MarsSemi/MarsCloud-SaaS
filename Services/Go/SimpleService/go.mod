@@ -2,7 +2,7 @@ module SimpleService
 
 go 1.25.6
 
-require github.com/MarsSemi/MarsCloud-SaaS/SDK/Go v0.1.3
+require github.com/MarsSemi/MarsCloud-SaaS/SDK/Go v0.1.6
 
 require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
