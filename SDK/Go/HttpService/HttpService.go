@@ -115,6 +115,8 @@ func (_this *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 		return
 	}
 
+	//Tools.Log.Print(Tools.LL_Info, "Call Root API : "+_uriOrg)
+
 	_uri := strings.Split(_uriOrg, "?")[0]
 	_fn := _this._RootPath + _uri
 	_cacheControl := Tools.If(_this._EnableCache, _this._DefaultCacheControl, "no-cache")
@@ -147,6 +149,8 @@ func (_this *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback)
 
 		_this._Handlers[_uri] = _api.callBack
 		_this._Mux.HandleFunc(_uri, _api.servHTTP)
+
+		//Tools.ConsolePrint("AddRestfulAPI : " + _uri)
 	}
 }
 

@@ -3,6 +3,7 @@ package MQTTClient
 import (
 	"time"
 
+	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Tools"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
@@ -77,21 +78,20 @@ type MQTTClient struct {
 
 // -------------------------------------------------------------------------------------
 func Create() (*MQTTClient, error) {
-	_thisc := &MQTTClient{}
+	_this := &MQTTClient{}
 
-	return _thisc, nil
+	return _this, nil
 }
 
 // -------------------------------------------------------------------------------------
-func (_thisc *MQTTClient) SetCallback(_cb MQTTCallback) {
-	_thisc._Callback = _cb
+func (_this *MQTTClient) SetCallback(_cb MQTTCallback) {
+	_this._Callback = _cb
 }
 
 // -------------------------------------------------------------------------------------
-func (_thisc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
+func (_this *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 
 	_opts := mqtt.NewClientOptions()
-
 	_opts.AddBroker(_options.Server)
 	_opts.SetClientID(_options.ClientID)
 	_opts.SetUsername(_options.UserName)
@@ -104,25 +104,28 @@ func (_thisc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 
 	// 設定連線遺失回調
 	_opts.OnConnectionLost = func(_c mqtt.Client, _err error) {
-		if _thisc._Callback != nil {
-			_thisc._Callback.OnConnectionLost(_err)
+		if _this._Callback != nil {
+			_this._Callback.OnConnectionLost(_err)
 		}
 	}
 
 	// 設定預設訊息處理 (用於 Subscribe 時沒指定處理器的情況)
-	_opts.DefaultPublishHandler = func(_c mqtt.Client, _this mqtt.Message) {
-		if _thisc._Callback != nil {
-			_thissg := &MQTTMessage{
-				_Payload:  _this.Payload(),
-				_Qos:      _this.Qos(),
-				_Retained: _this.Retained(),
+	_opts.SetDefaultPublishHandler(func(_c mqtt.Client, _msg mqtt.Message) {
+
+		if _this._Callback != nil {
+
+			_data := &MQTTMessage{
+				_Payload:  _msg.Payload(),
+				_Qos:      _msg.Qos(),
+				_Retained: _msg.Retained(),
 			}
-			_thisc._Callback.OnMessageArrived(_this.Topic(), _thissg)
+
+			_this._Callback.OnMessageArrived(_msg.Topic(), _data)
 		}
-	}
+	})
 
-	_thisc._Client = mqtt.NewClient(_opts)
-	if _token := _thisc._Client.Connect(); _token.Wait() && _token.Error() != nil {
+	_this._Client = mqtt.NewClient(_opts)
+	if _token := _this._Client.Connect(); _token.Wait() && _token.Error() != nil {
 		return _token.Error()
 	}
 
@@ -130,28 +133,31 @@ func (_thisc *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 }
 
 // -------------------------------------------------------------------------------------
-func (_thisc *MQTTClient) Subscribe(_topic string, _qos int) error {
-	if _token := _thisc._Client.Subscribe(_topic, byte(_qos), nil); _token.Wait() && _token.Error() != nil {
+func (_this *MQTTClient) Subscribe(_topic string, _qos int) error {
+	if _token := _this._Client.Subscribe(_topic, byte(_qos), nil); _token.Wait() && _token.Error() != nil {
+
+		Tools.Log.Print(Tools.LL_Error, "Subscribe Error : %v\n", _topic)
 		return _token.Error()
 	}
+
 	return nil
 }
 
 // -------------------------------------------------------------------------------------
-func (_thisc *MQTTClient) Publish(_topic string, _thisessage *MQTTMessage) error {
-	_token := _thisc._Client.Publish(_topic, _thisessage._Qos, _thisessage._Retained, _thisessage._Payload)
+func (_this *MQTTClient) Publish(_topic string, _thisessage *MQTTMessage) error {
+	_token := _this._Client.Publish(_topic, _thisessage._Qos, _thisessage._Retained, _thisessage._Payload)
 	_token.Wait()
 	return _token.Error()
 }
 
 // -------------------------------------------------------------------------------------
-func (_thisc *MQTTClient) Disconnect(_quiesce int) {
-	_thisc._Client.Disconnect(uint(_quiesce))
+func (_this *MQTTClient) Disconnect(_quiesce int) {
+	_this._Client.Disconnect(uint(_quiesce))
 }
 
 // -------------------------------------------------------------------------------------
-func (_thisc *MQTTClient) IsConnected() bool {
-	return _thisc._Client.IsConnected()
+func (_this *MQTTClient) IsConnected() bool {
+	return _this._Client.IsConnected()
 }
 
 // -------------------------------------------------------------------------------------

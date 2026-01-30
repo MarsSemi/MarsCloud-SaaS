@@ -56,28 +56,24 @@ func (_this *serviceCallback) OnConnectionLost(_err error) {
 func (_this *serviceCallback) OnDeliveryComplete(_token string) {}
 
 // -------------------------------------------------------------------------------------
-func (_this *serviceCallback) OnMessageArrived(_topic string, _thisg *MQTTClient.MQTTMessage) {
+func (_this *serviceCallback) OnMessageArrived(_topic string, _msg *MQTTClient.MQTTMessage) {
+
 	defer func() {
 		if _r := recover(); _r != nil {
 			Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("MQTT Message Error: %v", _r))
 		}
 	}()
 
-	_payload := string(_thisg.GetPayload())
+	_payload := string(_msg.GetPayload())
 
-	// 1. 處理預設系統主題
-	if _this.service.MQTT_Default_Topic == _topic {
-		_this.service.OnDefaultMQTTMessage(_topic, _payload)
-		if _this.service.MQTT_Default_Topic == _this.service.MQTT_Topic {
-			_this.service.impl.OnMQTTMessage(_topic, _payload)
-		}
+	if _this.service.AsyncTaskProcessor != nil && _topic == _this.service.MQTT_AsyncTask_Topic {
+
+		_this.service.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
+
 	} else {
-		// 2. 處理非同步任務或是具體業務主題
-		if _this.service.AsyncTaskProcessor != nil && strings.Contains(_topic, "/service."+strings.ToLower(_this.service.ServiceType)) {
-			_this.service.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
-		} else {
-			_this.service.impl.OnMQTTMessage(_topic, _payload)
-		}
+
+		_this.service.onMQTTDefault(_topic, _payload)
+		_this.service.impl.OnMQTTMessage(_topic, _payload)
 	}
 }
 
@@ -156,7 +152,7 @@ func (_this *MarsService) init(_propertyFileName string) {
 	_this.ServiceName = _this.Property.OptString("service_name", "Unknown Service")
 	_this.ServiceID = fmt.Sprintf("%s-%d", Tools.GetMachineID(), _this.defaultHttpPort)
 
-	_this.webHook = _this.Property.OptString("url_hook", "")
+	_this.webHook = _this.getWebHook()
 	_this.autoRestartTime = *_this.Property.OptJSONArray("restart_time") //["6:00:00", "14:12:24"]
 
 	_url := _this.Property.OptString("mars_cloud_url", "")
@@ -236,20 +232,32 @@ func (_this *MarsService) checPortConflict() {
 // -------------------------------------------------------------------------------------
 func (_this *MarsService) Start() {
 
-	// 檢查端口衝突
-	_this.checPortConflict()
+	go func() {
 
-	if _this.HttpService != nil {
+		//延遲啟動一下
+		time.Sleep(100 * time.Millisecond)
 
-		_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
-		_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
-		_this.HttpService.Run()
-	}
+		// 檢查端口衝突
+		_this.checPortConflict()
+		_this.initMQTTClient(_this.MarsClient.GetServerURL())
 
-	_this.ResetAutoRestart()
-	_this.ResetAutoGC()
+		if _this.AsyncTaskProcessor == nil {
 
-	Tools.Log.Print(Tools.LL_Info, "Service Start : "+_this.ServiceName)
+			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
+		}
+
+		if _this.HttpService != nil {
+
+			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
+			_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
+			_this.HttpService.Run()
+		}
+
+		_this.ResetAutoRestart()
+		_this.ResetAutoGC()
+
+		Tools.Log.Print(Tools.LL_Info, "Service Start : %s %s", _this.ServiceName, _this.ServiceVersion)
+	}()
 }
 
 // -------------------------------------------------------------------------------------
@@ -296,9 +304,6 @@ func (_this *MarsService) initMarsClient(_url, _account, _pass, _proj string) {
 	}
 
 	Tools.Log.Print(Tools.LL_Info, "Init MarsCloud Client: true")
-
-	// 初始化 MQTT，使用 MetaClient 取得的 Server URL
-	_this.initMQTTClient(_this.MarsClient.GetServerURL())
 }
 
 // -------------------------------------------------------------------------------------
@@ -345,11 +350,11 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 	_this.ServiceInfo.Put("ip", Tools.GetLocalIPv4Address())
 	_this.ServiceInfo.Put("mac", Tools.GetLocalMACAddress(""))
 
-	_this.ServiceInfo.Put("public", false)
+	_this.ServiceInfo.Put("public", _this.Property.OptBoolean("is_public", true))
 	_this.ServiceInfo.Put("initiative", true)
 	_this.ServiceInfo.Put("is_online", _isOnline)
 
-	Tools.Log.Print(Tools.LL_Info, "Service Registered: %s", _version)
+	Tools.Log.Print(Tools.LL_Debug, "Service Registered : %s", _version)
 
 	// 定時同步 (Heartbeat)
 	_this.syncTimer = time.NewTicker(20 * time.Second)
@@ -393,14 +398,14 @@ func (_this *MarsService) initMQTTClient(_url string) {
 		_topicID = _this.MarsClient.Account
 	}
 
-	_topic := _this.Property.OptString("mqtt_topic", _topicID+"/+/#")
+	//_topic := _this.Property.OptString("mqtt_topic", _topicID+"/+/#")
+	_topic := _this.Property.OptString("mqtt_topic", _topicID+"/event/+")
 	if _topic == "" {
-		Tools.Log.Print(Tools.LL_Warning, "MQTT is disabled: topic is empty")
-		return
+		Tools.Log.Print(Tools.LL_Debug, "MQTT is disabled: topic is empty")
 	}
 
 	_this.MQTT_Default_Topic = _topicID + "/event/" + _this.ServiceID
-	_this.MQTT_AsyncTask_Topic = _topicID + "/service." + strings.ToLower(_this.ServiceType) + "/+"
+	_this.MQTT_AsyncTask_Topic = _topicID + "/service." + strings.ToLower(_this.ServiceType) + "/api"
 
 	// 3. 建立連線選項
 	_opts := MQTTClient.NewMQTTConnectOptions()
@@ -446,25 +451,23 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 	go func() {
 		defer func() { recover() }()
 
-		if _topic == "" {
-			_this.MQTTClient.Disconnect(250)
-			_this.MQTT_Topic = ""
-			return
-		}
-
 		// 模擬 Java 版的重連與主題重整邏輯
 		_tick := 0
 		for {
 			if _this.MQTTClient.IsConnected() {
 				break
 			}
+
 			time.Sleep(1 * time.Second)
 			_tick++
+
 			if _tick >= 5 {
 				_tick = 0
 				// 此處依賴底層自動重連，或手動觸發連線
 			}
 		}
+
+		Tools.Log.Print(Tools.LL_Info, "MQTT connection status : %v", _this.MQTTClient.IsConnected())
 
 		if _this.MQTTClient.IsConnected() {
 			_this.impl.OnMQTTConnected()
@@ -473,15 +476,17 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 			_this.MQTTClient.Subscribe(_this.MQTT_Default_Topic, 0)
 			_this.MQTTClient.Subscribe(_this.MQTT_AsyncTask_Topic, 0)
 
-			if _this.MQTT_Default_Topic != _topic {
-				_this.MQTTClient.Subscribe(_topic, 0)
+			if len(_topic) > 0 {
+
+				if _this.MQTT_Default_Topic != _topic {
+					_this.MQTTClient.Subscribe(_topic, 0)
+				}
+
+				_this.MQTT_Topic = _topic
+
+				Tools.Log.Print(Tools.LL_Debug, "MQTT User Define Topic : %s", _this.MQTT_Topic)
 			}
-
-			_this.MQTT_Topic = _topic
-			Tools.Log.Print(Tools.LL_Debug, "MQTT current Topic : %s", _this.MQTT_Topic)
 		}
-
-		Tools.Log.Print(Tools.LL_Info, "MQTT connection status : %v", _this.MQTTClient.IsConnected())
 	}()
 }
 
@@ -489,8 +494,9 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 // 系統命令處理 (MQTT)
 //-------------------------------------------------------------------------------------
 
-// OnDefaultMQTTMessage 處理系統預設命令
-func (_this *MarsService) OnDefaultMQTTMessage(_topic, _payload string) {
+// onDefaultMQTT 處理系統預設命令
+func (_this *MarsService) onMQTTDefault(_topic, _payload string) {
+
 	_thisgObj := MarsJSON.NewJSONObject(_payload)
 	// 取得 values 陣列中的第一個指令
 	_values := _thisgObj.OptJSONArray("values")
@@ -579,15 +585,17 @@ func (_this *MarsService) RemoveRestfulAPI(_uri string) {
 //-------------------------------------------------------------------------------------
 
 // GetWebHook 獲取當前 Web 服務的 Hook 地址
-func (_this *MarsService) GetWebHook() string {
+func (_this *MarsService) getWebHook() string {
 
-	_ip := _this.ServiceInfo.OptString("ip", "")
+	_ip := Tools.GetLocalIPv4Address()
+	_hook := _this.Property.OptString("url_hook", "")
+	_hook = _this.Property.OptString("web_hook", _hook)
 
-	if _this.webHook != "" {
+	if _hook != "" {
 		return strings.Replace(strings.Replace(_this.webHook, "127.0.0.0", _ip, 1), "localhost", _ip, 1)
 	}
 
-	return fmt.Sprintf("http://%s:%d", _ip, _this.defaultHttpPort)
+	return "http://" + _ip + fmt.Sprintf("%v", Tools.If(_this.defaultHttpPort == 80, "", _this.defaultHttpPort))
 }
 
 // ------------------------------------------------------------------------------------
@@ -639,13 +647,11 @@ func (_this *MarsService) ResetAutoGC() {
 	}
 }
 
-// -------------------------------------------------------------------------------------
-// 重啟管理
-// -------------------------------------------------------------------------------------
-func (_this *MarsService) RestartService() {
+//-------------------------------------------------------------------------------------
+// 關閉邏輯
+//-------------------------------------------------------------------------------------
 
-	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to restart...")
-
+func (_this *MarsService) StopService() bool {
 	// 1. 執行停止前的清理邏輯
 	if _this.impl != nil {
 		_this.impl.BeforeServiceStop()
@@ -660,7 +666,38 @@ func (_this *MarsService) RestartService() {
 	// 3. 關閉網路連線資源
 	_this.CloseNetService()
 
-	// 4. 呼叫 Tools 中的實體重啟邏輯
+	Tools.Log.Print(Tools.LL_Info, "Service Stoped")
+	return true
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) CloseNetService() {
+	if _this.MQTTClient != nil {
+		_this.MQTTClient.Disconnect(250)
+	}
+	Tools.Log.Print(Tools.LL_Info, "Network services closed")
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) ShutdownService() {
+
+	_this.StopService()
+
+	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to shutdown ...")
+
+	os.Exit(0)
+}
+
+// -------------------------------------------------------------------------------------
+// 重啟管理
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) RestartService() {
+
+	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to restart...")
+
+	_this.StopService()
+
+	//呼叫 Tools 中的實體重啟邏輯
 	_err := Tools.RestartItSelf()
 
 	if _err != nil {
@@ -736,30 +773,6 @@ func (_this *MarsService) PushLineMessage(_target, _thisg string) bool {
 		//return _this.MarsClient.PushLineMessage(_target, _thisg)
 	}
 	return false
-}
-
-//-------------------------------------------------------------------------------------
-// 關閉邏輯
-//-------------------------------------------------------------------------------------
-
-func (_this *MarsService) StopService() bool {
-	_this.CloseNetService()
-	Tools.Log.Print(Tools.LL_Info, "Service Stoped")
-	return true
-}
-
-// -------------------------------------------------------------------------------------
-func (_this *MarsService) ShutdownService() {
-	_this.StopService()
-	os.Exit(0)
-}
-
-// -------------------------------------------------------------------------------------
-func (_this *MarsService) CloseNetService() {
-	if _this.MQTTClient != nil {
-		_this.MQTTClient.Disconnect(250)
-	}
-	Tools.Log.Print(Tools.LL_Info, "Network services closed")
 }
 
 //-------------------------------------------------------------------------------------

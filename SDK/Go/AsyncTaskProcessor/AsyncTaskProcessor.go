@@ -15,21 +15,21 @@ import (
 // AsyncTaskProcessor 處理非同步任務的處理器
 type AsyncTaskProcessor struct {
 	_Client            *MarsClient.MarsClient
-	_MainServerType    string
 	_MainServerHost    string
 	_MainServerWebhook string
 }
 
 // -------------------------------------------------------------------------------------
 // NewAsyncTaskProcessor 建立處理器實例
-func NewAsyncTaskProcessor(_client *MarsClient.MarsClient, _type string, _webHook string) *AsyncTaskProcessor {
+func Create(_client *MarsClient.MarsClient, _webHook string) *AsyncTaskProcessor {
+
 	_this := &AsyncTaskProcessor{}
 
 	if _client != nil {
-		_this._Client = _client // 注意：之前 MarsService 實作中 MarsClient 存放於 _MarsClient
+
+		_this._Client = _client
 		if _this._Client != nil {
 			_this._MainServerHost = _this._Client.GetServerURLByIndex(0)
-			_this._MainServerType = strings.ToLower(_type)
 			_this._MainServerWebhook = _webHook
 		}
 	}
@@ -40,7 +40,7 @@ func NewAsyncTaskProcessor(_client *MarsClient.MarsClient, _type string, _webHoo
 // -------------------------------------------------------------------------------------
 // OnMQTTMessage 接收並解析 MQTT 訊息
 func (_this *AsyncTaskProcessor) OnMQTTMessage(_topic string, _payload string) {
-	// Go 中的 strings.Split 效果等同於 Java 的 split
+
 	_topics := strings.Split(_topic, "/")
 
 	// Java: if(_topics.length >= 3) switch(_topics[2])
@@ -55,34 +55,24 @@ func (_this *AsyncTaskProcessor) OnMQTTMessage(_topic string, _payload string) {
 // -------------------------------------------------------------------------------------
 // ProcessAPI 啟動一個 Goroutine 來執行非同步任務 (對應 Java 的 new Thread().start())
 func (_this *AsyncTaskProcessor) ProcessAPI(_payload string) {
-	// 在 Go 中直接使用 goroutine 處理非同步邏輯
-	go func() {
-		// 捕捉可能發生的 panic 以確保服務穩定
-		// (這裡可以使用之前在 sysutil 實作過的 GlobalRecovery)
 
-		var _data string = _payload
+	go func() {
 
 		// 1. 執行非同步任務邏輯 (對應 AsyncTask.run)
-		_content := MarsJSON.NewJSONObject(_data)
+		_content := MarsJSON.NewJSONObject(_payload)
 		_api := _content.OptString("api", "")
 		_token := _content.OptString("token", "")
 		_body := _content.OptString("body", "")
-
-		// 移除 token 不回傳
-		_content.Remove("token")
-
-		// 執行本地 HTTP POST (設定 2 小時逾時，對應 Java 2*60*60*1000)
-		// 這裡呼叫之前 netutil 中支援 timeout 的方法
 		_resp := Tools.HttpPost(_this._MainServerWebhook+_api, _token, "", _body, 7200000)
 
-		// 更新回傳內容
+		_content.Remove("token") // 移除 token 不回傳
 		_content.Put("respone", _resp)
-		_data = _content.ToString()
+		_payload = _content.ToString()
 
 		// 2. 回傳結果給主伺服器 (最後執行的 finally 區塊)
 		if _this._Client != nil {
 			_respURL := _this._MainServerHost + "/services/respone"
-			Tools.HttpPost(_respURL, _this._Client.AuthToken, "", _data, 15000)
+			Tools.HttpPost(_respURL, _this._Client.AuthToken, "", _payload, 15000)
 		}
 	}()
 }
