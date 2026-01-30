@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"time"
 
@@ -53,7 +54,25 @@ type JWTProcessor struct {
 // -------------------------------------------------------------------------------------
 // 全域實例 (模擬 Java 的靜態成員)
 var JWT = &JWTProcessor{
-	_AES_IV: []byte("0102070408070209"), // 與 Java 相同的 IV
+	_AES_IV: generateNumericString(16), // 與 Java 相同的 IV
+}
+
+// -------------------------------------------------------------------------------------
+func generateNumericString(length int) []byte {
+	const charset = "0123456789"
+
+	_result := make([]byte, length)
+	for i := range _result {
+		// 安全地生成 0-9 的隨機索引
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return nil
+		}
+
+		_result[i] = charset[num.Int64()]
+	}
+
+	return _result
 }
 
 // -------------------------------------------------------------------------------------
@@ -140,6 +159,7 @@ func (_this *JWTProcessor) SaveRSAKey(_pubPath string, _priPath string) bool {
 //-------------------------------------------------------------------------------------
 
 func (_this *JWTProcessor) LoadAESKey(_key []byte) bool {
+
 	if len(_key) > 0 {
 		_this._SecretKey = _key
 	} else {
@@ -160,6 +180,7 @@ func (_this *JWTProcessor) LoadAESKey(_key []byte) bool {
 
 // -------------------------------------------------------------------------------------
 func (_this *JWTProcessor) LoadAESKey32(_key []byte) bool {
+
 	if len(_key) > 0 {
 		_this._SecretKey = _key
 	} else {
