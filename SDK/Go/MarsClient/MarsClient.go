@@ -265,14 +265,14 @@ func (_this *MarsClient) ResetSecurityKey() bool {
 	// 2. 獲取 RSA Keys
 	_req.Put("target", "rsa_public")
 	_pubBase64 := _this.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
+	_pubBase64 = "-----BEGIN PUBLIC KEY-----\n" + _pubBase64 + "\n-----END PUBLIC KEY-----"
+
 	_req.Put("target", "rsa_private")
 	_priBase64 := _this.CallAPI(_api, _req.ToString(), _DefaultTimeOut)
+	_priBase64 = "-----BEGIN PRIVATE KEY-----\n" + _priBase64 + "\n-----END PRIVATE KEY-----"
 
 	if _pubBase64 != "" && _priBase64 != "" {
-		_pubKey, _ := base64.StdEncoding.DecodeString(_pubBase64)
-		_priKey, _ := base64.StdEncoding.DecodeString(_priBase64)
-
-		return Security.JWT.LoadRSAKey(_pubKey, _priKey)
+		return Security.JWT.LoadRSAKey([]byte(_pubBase64), []byte(_priBase64))
 	}
 
 	return false
