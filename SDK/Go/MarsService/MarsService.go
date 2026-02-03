@@ -104,6 +104,10 @@ type MarsService struct {
 	ssl_Key_File     string
 	ssl_Key_Password string
 
+	account  string
+	password string
+	webHook  string
+
 	SystemStartTime      int64
 	IsDebugData          bool
 	RestartAfterConflict bool
@@ -115,7 +119,6 @@ type MarsService struct {
 	stopChan chan struct{}
 
 	autoRestartTime MarsJSON.JSONArray
-	webHook         string
 	impl            IMarsService // 指向具體的實作物件_
 }
 
@@ -152,13 +155,10 @@ func (_this *MarsService) init(_propertyFileName string) {
 	_this.ServiceName = _this.Property.OptString("service_name", "Unknown Service")
 	_this.ServiceID = fmt.Sprintf("%s-%d", Tools.GetMachineID(), _this.defaultHttpPort)
 
+	_this.account = _this.Property.OptString("mars_cloud_account", "")
+	_this.password = _this.Property.OptString("mars_cloud_password", "")
 	_this.webHook = _this.getWebHook()
 	_this.autoRestartTime = *_this.Property.OptJSONArray("restart_time") //["6:00:00", "14:12:24"]
-
-	_url := _this.Property.OptString("mars_cloud_url", "")
-	_account := _this.Property.OptString("mars_cloud_account", "")
-	_pwd := _this.Property.OptString("mars_cloud_password", "")
-	_proj := _this.Property.OptString("mars_cloud_proj", "")
 
 	fmt.Printf("\n------------------------------------\n")
 	fmt.Printf("\n %s \n", _this.ServiceName)
@@ -166,9 +166,6 @@ func (_this *MarsService) init(_propertyFileName string) {
 
 	Tools.Log.Print(Tools.LL_Info, "Service ID : %s", _this.ServiceID)
 	Tools.Log.Print(Tools.LL_Info, "Process ID : %d", Tools.GetPID(nil))
-
-	_this.initMarsClient(_url, _account, _pwd, _proj)
-	_this.ResetWebService()
 }
 
 // -------------------------------------------------------------------------------------
@@ -205,19 +202,22 @@ func (_this *MarsService) Start() {
 
 		// 檢查端口衝突
 		_this.checPortConflict()
-		_this.initMQTTClient(_this.MarsClient.GetServerURL())
-		_this.doRegistry(true)
 
-		if _this.AsyncTaskProcessor == nil {
+		if _this.HttpService == nil {
 
-			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
-		}
+			_url := _this.Property.OptString("mars_cloud_url", "")
+			_proj := _this.Property.OptString("mars_cloud_proj", "")
 
-		if _this.HttpService != nil {
-
+			_this.ResetWebService()
 			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
 			_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
 			_this.HttpService.Run()
+
+			_this.initMarsClient(_url, _this.account, _this.password, _proj)
+			_this.initMQTTClient(_this.MarsClient.GetServerURL())
+			_this.doRegistry(true)
+
+			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
 		}
 
 		_this.ResetAutoRestart()
@@ -313,7 +313,7 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 	_this.ServiceInfo.Put("vender", "MARS")
 	_this.ServiceInfo.Put("timestamp", _this.SystemStartTime)
 	_this.ServiceInfo.Put("web_hook", _this.webHook)
-	_this.ServiceInfo.Put("owner", _this.MarsClient.Account)
+	_this.ServiceInfo.Put("owner", _this.account)
 	_this.ServiceInfo.Put("ip", Tools.GetLocalIPv4Address())
 	_this.ServiceInfo.Put("mac", Tools.GetLocalMACAddress(""))
 
