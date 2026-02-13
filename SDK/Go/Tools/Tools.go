@@ -896,7 +896,7 @@ func GetFullMachineID() string {
 		}
 	}
 
-	return GetLocalIPv4Address()
+	return GetLocalMACAddress("")
 }
 
 // -------------------------------------------------------------------------------------

@@ -309,7 +309,7 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 	_this.ServiceInfo.Put("version", _this.ServiceVersion)
 	_this.ServiceInfo.Put("type", "service."+_this.ServiceType)
 	_this.ServiceInfo.Put("kernel_name", "[com.mars.cloudapp.go]")
-	_this.ServiceInfo.Put("kernel_version", "0.1.0")
+	_this.ServiceInfo.Put("kernel_version", "0.2.13")
 	_this.ServiceInfo.Put("vender", "MARS")
 	_this.ServiceInfo.Put("timestamp", _this.SystemStartTime)
 	_this.ServiceInfo.Put("web_hook", _this.webHook)

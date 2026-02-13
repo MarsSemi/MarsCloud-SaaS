@@ -190,6 +190,8 @@ func (_this *HttpService) Run() {
 		go func() {
 
 			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Https Listen at : %d", _this._HttpsPort))
+			Tools.ConsolePrint(_this._SSLKey)
+			Tools.ConsolePrint(_this._SSLPassword)
 			// Go 內建 ListenAndServeTLS 需要 Cert 與 Key 檔案路徑
 			if _err := _this._HttpsServer.ListenAndServeTLS(_this._SSLKey, _this._SSLPassword); _err != nil && _err != http.ErrServerClosed {
 
