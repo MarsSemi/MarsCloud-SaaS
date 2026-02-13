@@ -160,6 +160,8 @@ func (_this *MarsService) init(_propertyFileName string) {
 	_this.webHook = _this.getWebHook()
 	_this.autoRestartTime = *_this.Property.OptJSONArray("restart_time") //["6:00:00", "14:12:24"]
 
+	_this.ResetWebService()
+
 	fmt.Printf("\n------------------------------------\n")
 	fmt.Printf("\n %s \n", _this.ServiceName)
 	fmt.Printf("\n------------------------------------\n\n")
@@ -169,7 +171,7 @@ func (_this *MarsService) init(_propertyFileName string) {
 }
 
 // -------------------------------------------------------------------------------------
-func (_this *MarsService) checPortConflict() {
+func (_this *MarsService) checkPortConflict() {
 
 	// 檢查端口衝突並嘗試自動排除
 	if Tools.IsPortInUsing(_this.defaultHttpPort) {
@@ -201,23 +203,21 @@ func (_this *MarsService) Start() {
 		time.Sleep(100 * time.Millisecond)
 
 		// 檢查端口衝突
-		_this.checPortConflict()
+		_this.checkPortConflict()
 
-		if _this.HttpService == nil {
+		if _this.HttpService != nil {
 
 			_url := _this.Property.OptString("mars_cloud_url", "")
 			_proj := _this.Property.OptString("mars_cloud_proj", "")
 
-			_this.ResetWebService()
-			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
-			_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
-			_this.HttpService.Run()
-
+			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
 			_this.initMarsClient(_url, _this.account, _this.password, _proj)
 			_this.initMQTTClient(_this.MarsClient.GetServerURL())
 			_this.doRegistry(true)
 
-			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
+			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
+			_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
+			_this.HttpService.Run()
 		}
 
 		_this.ResetAutoRestart()
