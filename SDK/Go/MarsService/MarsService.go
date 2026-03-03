@@ -66,14 +66,15 @@ func (_this *serviceCallback) OnMessageArrived(_topic string, _msg *MQTTClient.M
 
 	_payload := string(_msg.GetPayload())
 
-	if _this.service.AsyncTaskProcessor != nil && _topic == _this.service.MQTT_AsyncTask_Topic {
+	if _this.service.AsyncTaskProcessor != nil {
 
-		_this.service.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
+		if _topic == _this.service.MQTT_AsyncTask_Topic {
+			_this.service.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
+		} else {
 
-	} else {
-
-		_this.service.onMQTTDefault(_topic, _payload)
-		_this.service.impl.OnMQTTMessage(_topic, _payload)
+			_this.service.onMQTTDefault(_topic, _payload)
+			_this.service.impl.OnMQTTMessage(_topic, _payload)
+		}
 	}
 }
 
@@ -210,9 +211,9 @@ func (_this *MarsService) Start() {
 			_url := _this.Property.OptString("mars_cloud_url", "")
 			_proj := _this.Property.OptString("mars_cloud_proj", "")
 
-			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
 			_this.initMarsClient(_url, _this.account, _this.password, _proj)
 			_this.initMQTTClient(_this.MarsClient.GetServerURL())
+			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
 			_this.doRegistry(true)
 
 			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
@@ -465,20 +466,24 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 func (_this *MarsService) onMQTTDefault(_topic, _payload string) {
 
 	_thisgObj := MarsJSON.NewJSONObject(_payload)
-	// 取得 values 陣列中的第一個指令
-	_values := _thisgObj.OptJSONArray("values")
-	if _values != nil && _values.Length() > 0 {
-		_cmdObj := _values.OptJSONObject(0)
-		_cmd := _cmdObj.OptString("cmd", "")
+	_cmdObj := _thisgObj
+	_cmd := _thisgObj.OptString("api", "")
 
-		switch _cmd {
-		case "reboot":
-			_this.RestartService()
-		case "shutdown":
-			_this.ShutdownService()
-		case "reset_properties":
-			_this.ModifyProperties(_cmdObj.OptString("properties", ""))
+	if _thisgObj.Has("values") {
+		_values := _thisgObj.OptJSONArray("values")
+		if _values != nil && _values.Length() > 0 {
+			_cmdObj = _values.OptJSONObject(0)
+			_cmd = _cmdObj.OptString("cmd", _cmdObj.OptString("api", ""))
 		}
+	}
+
+	switch _cmd {
+	case "reboot":
+		_this.RestartService()
+	case "shutdown":
+		_this.ShutdownService()
+	case "reset_properties":
+		_this.ModifyProperties(_cmdObj.OptString("properties", ""))
 	}
 }
 
