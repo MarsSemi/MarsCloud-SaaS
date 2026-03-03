@@ -562,7 +562,7 @@ func (_this *MarsService) getWebHook() string {
 		return strings.Replace(strings.Replace(_this.webHook, "127.0.0.0", _ip, 1), "localhost", _ip, 1)
 	}
 
-	return "http://" + _ip + fmt.Sprintf("%v", Tools.If(_this.defaultHttpPort == 80, "", _this.defaultHttpPort))
+	return "http://" + _ip + fmt.Sprintf("%v", Tools.If(_this.defaultHttpPort == 80, "", fmt.Sprintf(":%v", _this.defaultHttpPort)))
 }
 
 // ------------------------------------------------------------------------------------
