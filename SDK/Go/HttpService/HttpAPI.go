@@ -2,6 +2,7 @@ package HttpService
 
 // -------------------------------------------------------------------------------------
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -49,7 +50,25 @@ func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 		_jwt = Security.VerifyToken(_auth, "", _r.RemoteAddr)
 	}
 
-	_resp := _h.callBack.Process(_w, _r, _jwt, _items, nil, "")
+	// 提取參數
+	_params := MarsJSON.NewJSONObject(nil)
+	_query := _r.URL.Query()
+	for _key, _vals := range _query {
+		if len(_vals) > 0 {
+			_params.Put(_key, _vals[0])
+		}
+	}
+
+	// 提取 Body
+	_body := ""
+	if _r.Body != nil {
+		_bytes, _err := io.ReadAll(_r.Body)
+		if _err == nil {
+			_body = string(_bytes)
+		}
+	}
+
+	_resp := _h.callBack.Process(_w, _r, _jwt, _items, _params, _body)
 
 	if _resp != nil {
 		SendRespone(_w, http.StatusOK, "application/json; charset=UTF-8", _resp)
