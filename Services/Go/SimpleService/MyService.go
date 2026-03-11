@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsJSON"
+	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsService"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Tools"
 )
 
@@ -12,6 +13,7 @@ import (
 // MyCloudService 繼承自 MarsService
 // -------------------------------------------------------------------------------------
 type MyCloudService struct {
+	*MarsService.MarsService
 	Counter int
 }
 
