@@ -14,6 +14,7 @@ import (
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/AsyncTaskProcessor"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/HttpService"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MQTTClient"
+	MarsMQTTServer "github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MQTTServer"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsClient"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsJSON"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Tools"
@@ -84,6 +85,7 @@ func (_this *serviceCallback) OnMessageArrived(_topic string, _msg *MQTTClient.M
 type MarsService struct {
 	MarsClient         *MarsClient.MarsClient
 	MQTTClient         *MQTTClient.MQTTClient
+	LocalMQTTServer    *MarsMQTTServer.MQTTServer
 	HttpService        *HttpService.HttpService
 	Property           *MarsJSON.JSONObject
 	ServiceInfo        *MarsJSON.JSONObject
@@ -102,12 +104,14 @@ type MarsService struct {
 
 	defaultHttpPort  int
 	defaultHttpsPort int
+	ssl_Cert_File    string
 	ssl_Key_File     string
 	ssl_Key_Password string
 
 	account  string
 	password string
 	webHook  string
+	localMQTTMessageCallback MarsMQTTServer.MessageCallback
 
 	SystemStartTime      int64
 	IsDebugData          bool
@@ -150,7 +154,8 @@ func (_this *MarsService) init(_propertyFileName string) {
 	// 初始化基本變數
 	_this.defaultHttpPort = _this.Property.OptInt("http_port", 80)
 	_this.defaultHttpsPort = _this.Property.OptInt("https_port", 433)
-	_this.ssl_Key_File = _this.Property.OptString("ssl_key", "")
+	_this.ssl_Cert_File = _this.Property.OptString("ssl_key", "")
+	_this.ssl_Key_File = _this.Property.OptString("ssl_key_file", "")
 	_this.ssl_Key_Password = _this.Property.OptString("ssl_key_password", "")
 
 	_this.ServiceName = _this.Property.OptString("service_name", "Unknown Service")
@@ -210,11 +215,23 @@ func (_this *MarsService) Start() {
 
 			_url := _this.Property.OptString("mars_cloud_url", "")
 			_proj := _this.Property.OptString("mars_cloud_proj", "")
+			_hasCloudConfig := _this.hasCompleteMarsCloudConfig(_url)
 
-			_this.initMarsClient(_url, _this.account, _this.password, _proj)
-			_this.initMQTTClient(_this.MarsClient.GetServerURL())
-			_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
-			_this.doRegistry(true)
+			if _this.shouldStartLocalMQTTServer(_hasCloudConfig) {
+				_this.startLocalMQTTServer()
+			}
+
+			if _hasCloudConfig {
+				_this.initMarsClient(_url, _this.account, _this.password, _proj)
+
+				if _this.MarsClient != nil {
+					_this.initMQTTClient(_this.MarsClient.GetServerURL())
+					_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
+					_this.doRegistry(true)
+				}
+			} else {
+				Tools.Log.Print(Tools.LL_Info, "MarsCloud disabled: mars_cloud_url/account/password 缺少設定，使用一般 Server 模式啟動")
+			}
 
 			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
 			_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
@@ -226,6 +243,48 @@ func (_this *MarsService) Start() {
 
 		Tools.Log.Print(Tools.LL_Info, "Service Start : %s %s", _this.ServiceName, _this.ServiceVersion)
 	}()
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) hasCompleteMarsCloudConfig(_url string) bool {
+	return strings.TrimSpace(_url) != "" &&
+		strings.TrimSpace(_this.account) != "" &&
+		strings.TrimSpace(_this.password) != ""
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) shouldStartLocalMQTTServer(_hasCloudConfig bool) bool {
+	return _this.Property.OptBoolean("mqtt_server_enable", false)
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) startLocalMQTTServer() {
+	if _this.LocalMQTTServer != nil {
+		return
+	}
+
+	_config := MarsMQTTServer.Config{
+		Host:      _this.Property.OptString("mqtt_bind", ""),
+		TCPPort:   _this.Property.OptInt("mqtt_tcp_port", 1883),
+		WSPort:    _this.Property.OptInt("mqtt_ws_port", 1884),
+		SSLPort:   _this.Property.OptInt("mqtt_ssl_port", 8883),
+		WSSPort:   _this.Property.OptInt("mqtt_wss_port", 8884),
+		CertFile:  _this.Property.OptString("mqtt_tls_cert", ""),
+		KeyFile:   _this.Property.OptString("mqtt_tls_key", ""),
+		OnMessage: _this.localMQTTMessageCallback,
+	}
+
+	_this.LocalMQTTServer = MarsMQTTServer.Create(_config)
+
+	if _err := _this.LocalMQTTServer.Start(); _err != nil {
+		Tools.Log.Print(Tools.LL_Error, "Local MQTT server start fail: %s", _err.Error())
+		_this.LocalMQTTServer = nil
+	}
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) SetLocalMQTTMessageCallback(_callback MarsMQTTServer.MessageCallback) {
+	_this.localMQTTMessageCallback = _callback
 }
 
 // -------------------------------------------------------------------------------------
@@ -518,6 +577,7 @@ func (_this *MarsService) ResetWebService() {
 		_this.HttpService = HttpService.Create(
 			_this.defaultHttpPort,
 			_this.defaultHttpsPort,
+			_this.ssl_Cert_File,
 			_this.ssl_Key_File,
 			_this.ssl_Key_Password,
 		)
@@ -596,9 +656,9 @@ func (_this *MarsService) OnUpdateProperty() {
 }
 
 // ------------------------------------------------------------------------------------
-// SendRespone 靜態工具的服務層包裝
-func (_this *MarsService) SendRespone(_w http.ResponseWriter, _no int, _contentType string, _content []byte) {
-	HttpService.SendRespone(_w, _no, _contentType, _content)
+// SendResponse 靜態工具的服務層包裝
+func (_this *MarsService) SendResponse(_w http.ResponseWriter, _no int, _contentType string, _content []byte) {
+	HttpService.SendResponse(_w, _no, _contentType, _content)
 }
 
 //-------------------------------------------------------------------------------------
@@ -646,6 +706,12 @@ func (_this *MarsService) StopService() bool {
 func (_this *MarsService) CloseNetService() {
 	if _this.MQTTClient != nil {
 		_this.MQTTClient.Disconnect(250)
+	}
+	if _this.LocalMQTTServer != nil {
+		if _err := _this.LocalMQTTServer.Close(); _err != nil {
+			Tools.Log.Print(Tools.LL_Error, "Close local MQTT server fail: %s", _err.Error())
+		}
+		_this.LocalMQTTServer = nil
 	}
 	Tools.Log.Print(Tools.LL_Info, "Network services closed")
 }

@@ -2,7 +2,10 @@ package Security
 
 // -------------------------------------------------------------------------------------
 import (
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsJSON"
@@ -19,6 +22,11 @@ const (
 	UT_Administrator UserGroup = "administrator"
 	UT_User          UserGroup = "user"
 	UT_Guest         UserGroup = "guest"
+)
+
+var (
+	compatJWTVerifiers     []*JWTProcessor
+	compatJWTVerifiersOnce sync.Once
 )
 
 // ------------------------------------------------------------------------------------
@@ -68,14 +76,31 @@ func VerifyToken(_auth_string string, _group UserGroup, _ipadd_from string) *Mar
 func DecryptToken(_auth_string string, _ignore_timetolive bool) *MarsJSON.JSONObject {
 	defer Tools.GlobalRecovery()
 
-	if len(_auth_string) > 16 {
-		// 1. 處理 "Bearer <token>" 格式
-		_authParts := strings.Split(_auth_string, " ")
-		_token := _authParts[len(_authParts)-1]
-
-		// 2. 呼叫 Security.JWT 執行解密 (此處假設您已實作 Security 套件)
+	_token := extractRawToken(_auth_string)
+	if len(_token) > 16 {
 		_jobj := JWT.DecryptToken(_token, _ignore_timetolive)
+		if _jobj != nil {
+			return _jobj
+		}
 
+		for _, _verifier := range getCompatJWTVerifiers() {
+			if _verifier == nil {
+				continue
+			}
+			_jobj = _verifier.DecryptToken(_token, _ignore_timetolive)
+			if _jobj != nil {
+				return _jobj
+			}
+		}
+
+		if !_ignore_timetolive {
+			time.Sleep(500 * time.Millisecond)
+		}
+		return nil
+	}
+
+	if len(_auth_string) > 16 {
+		_jobj := JWT.DecryptToken(_auth_string, _ignore_timetolive)
 		if _jobj != nil {
 			return _jobj
 		}
@@ -85,6 +110,133 @@ func DecryptToken(_auth_string string, _ignore_timetolive bool) *MarsJSON.JSONOb
 	time.Sleep(500 * time.Millisecond)
 
 	return nil
+}
+
+// -------------------------------------------------------------------------------------
+func extractRawToken(_authString string) string {
+	_authString = strings.TrimSpace(_authString)
+	if _authString == "" {
+		return ""
+	}
+
+	if strings.Contains(_authString, " ") {
+		_parts := strings.SplitN(_authString, " ", 2)
+		return strings.TrimSpace(_parts[1])
+	}
+
+	return _authString
+}
+
+// -------------------------------------------------------------------------------------
+func getCompatJWTVerifiers() []*JWTProcessor {
+	compatJWTVerifiersOnce.Do(initCompatJWTVerifiers)
+	return compatJWTVerifiers
+}
+
+// -------------------------------------------------------------------------------------
+func initCompatJWTVerifiers() {
+	compatJWTVerifiers = make([]*JWTProcessor, 0)
+
+	_prop := loadCompatProperty()
+	_candidates := []struct {
+		aes string
+		pub string
+		pri string
+	}{
+		{
+			aes: strings.TrimSpace(_prop.OptString("legacy_aes", "")),
+			pub: strings.TrimSpace(_prop.OptString("legacy_rsa_pub", "")),
+			pri: strings.TrimSpace(_prop.OptString("legacy_rsa_pri", "")),
+		},
+		{
+			aes: strings.TrimSpace(_prop.OptString("compat_aes", "")),
+			pub: strings.TrimSpace(_prop.OptString("compat_rsa_pub", "")),
+			pri: strings.TrimSpace(_prop.OptString("compat_rsa_pri", "")),
+		},
+		{
+			aes: strings.TrimSpace(_prop.OptString("default_aes", "")),
+			pub: strings.TrimSpace(_prop.OptString("default_rsa_pub", "")),
+			pri: strings.TrimSpace(_prop.OptString("default_rsa_pri", "")),
+		},
+		{
+			aes: "./authhub.aes.key",
+			pub: "./authhub.rsa.pub",
+			pri: "./authhub.rsa.pri",
+		},
+		{
+			aes: "./cert/aes.key",
+			pub: "./cert/rsa.pub",
+			pri: "./cert/rsa.pri",
+		},
+		{
+			aes: "../Cert/aes.key",
+			pub: "../Cert/rsa.pub",
+			pri: "../Cert/rsa.pri",
+		},
+	}
+
+	_seen := map[string]bool{}
+	for _, _candidate := range _candidates {
+		_aes := normalizeCompatPath(_candidate.aes)
+		_pub := normalizeCompatPath(_candidate.pub)
+		_pri := normalizeCompatPath(_candidate.pri)
+		if _aes == "" || _pub == "" || _pri == "" {
+			continue
+		}
+		if !compatFileExists(_aes) || !compatFileExists(_pub) || !compatFileExists(_pri) {
+			continue
+		}
+
+		_key := _aes + "|" + _pub + "|" + _pri
+		if _seen[_key] {
+			continue
+		}
+		_seen[_key] = true
+
+		_jwt := &JWTProcessor{}
+		if !_jwt.LoadRSAKeyFromFile(_pub, _pri) {
+			continue
+		}
+		if !_jwt.LoadAESKeyFromFile(_aes) {
+			continue
+		}
+
+		compatJWTVerifiers = append(compatJWTVerifiers, _jwt)
+	}
+}
+
+// -------------------------------------------------------------------------------------
+func loadCompatProperty() *MarsJSON.JSONObject {
+	_candidates := []string{
+		"./agent.properties",
+		"../agent.properties",
+	}
+
+	for _, _path := range _candidates {
+		if !compatFileExists(_path) {
+			continue
+		}
+
+		return MarsJSON.NewJSONObject(Tools.File2String(_path))
+	}
+
+	return MarsJSON.NewJSONObject("{}")
+}
+
+// -------------------------------------------------------------------------------------
+func normalizeCompatPath(_path string) string {
+	_path = strings.TrimSpace(_path)
+	if _path == "" {
+		return ""
+	}
+
+	return filepath.Clean(_path)
+}
+
+// -------------------------------------------------------------------------------------
+func compatFileExists(_path string) bool {
+	_info, _err := os.Stat(_path)
+	return _err == nil && !_info.IsDir()
 }
 
 // -------------------------------------------------------------------------------------

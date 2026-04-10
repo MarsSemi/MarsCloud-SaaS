@@ -221,8 +221,13 @@ func (_this *JWTProcessor) CreateToken(_method string, _root map[string]interfac
 	var _err error
 
 	if _method == TM_RSA.Value() && _this._PublicKey != nil {
-		// RSA-OAEP 加密
-		_token, _err = jwe.Encrypt(_payload, jwe.WithKey(jwa.RSA_OAEP_256, _this._PublicKey), jwe.WithProtectedHeaders(_headers))
+		// 與舊 Java 相容：使用 RSA-OAEP + A128GCM
+		_token, _err = jwe.Encrypt(
+			_payload,
+			jwe.WithKey(jwa.RSA_OAEP, _this._PublicKey),
+			jwe.WithContentEncryption(jwa.A128GCM),
+			jwe.WithProtectedHeaders(_headers),
+		)
 	} else if _method == TM_AES.Value() && len(_this._SecretKey) > 0 {
 		// 直接使用 AES Key 加密 (Direct)
 		_token, _err = jwe.Encrypt(_payload, jwe.WithKey(jwa.DIRECT, _this._SecretKey), jwe.WithContentEncryption(jwa.A128GCM), jwe.WithProtectedHeaders(_headers))
@@ -251,7 +256,10 @@ func (_this *JWTProcessor) DecryptToken(_tokenStr string, _ignoreExp bool) *Mars
 
 	// 嘗試使用私鑰解密 (RSA)
 	if _this._PrivateKey != nil {
-		_decrypted, _err = jwe.Decrypt([]byte(_tokenStr), jwe.WithKey(jwa.RSA_OAEP_256, _this._PrivateKey))
+		_decrypted, _err = jwe.Decrypt([]byte(_tokenStr), jwe.WithKey(jwa.RSA_OAEP, _this._PrivateKey))
+		if _err != nil {
+			_decrypted, _err = jwe.Decrypt([]byte(_tokenStr), jwe.WithKey(jwa.RSA_OAEP_256, _this._PrivateKey))
+		}
 	}
 
 	// 若 RSA 失敗或無私鑰，嘗試 AES

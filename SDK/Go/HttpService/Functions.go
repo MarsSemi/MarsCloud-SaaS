@@ -6,8 +6,8 @@ import (
 )
 
 // -------------------------------------------------------------------------------------
-// SendRespone 靜態工具函式，發送 HTTP 回應
-func SendRespone(_w http.ResponseWriter, _no int, _contentType string, _content []byte) {
+// SendResponse 靜態工具函式，發送 HTTP 回應
+func SendResponse(_w http.ResponseWriter, _no int, _contentType string, _content []byte) {
 	if _w == nil {
 		return
 	}
@@ -25,7 +25,7 @@ func SendRespone(_w http.ResponseWriter, _no int, _contentType string, _content 
 }
 
 // -------------------------------------------------------------------------------------
-// SendRespone 靜態工具函式，發送 HTTP 回應
+// checkURI 檢查請求 URI 是否安全
 func checkURI(_w http.ResponseWriter, _uri string) bool {
 
 	if strings.Contains(_uri, "..") {

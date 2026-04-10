@@ -3,15 +3,19 @@ package HttpService
 // -------------------------------------------------------------------------------------
 import (
 	"context"
+	"encoding/pem"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Tools"
+	"golang.org/x/crypto/pkcs12"
 )
 
 // -------------------------------------------------------------------------------------
@@ -26,7 +30,8 @@ type HttpService struct {
 
 	_HttpPort      int
 	_HttpsPort     int
-	_SSLKey        string
+	_SSLCert       string
+	_SSLKeyFile    string
 	_SSLPassword   string
 	_PoolMethod    string
 	_MaxConnection int
@@ -42,11 +47,12 @@ type HttpService struct {
 
 // -------------------------------------------------------------------------------------
 // NewHttpService 模擬 Java 建構子
-func Create(_http_port, _https_port int, _ssl_key, _ssl_pwd string) *HttpService {
+func Create(_http_port, _https_port int, _ssl_cert, _ssl_key_file, _ssl_pwd string) *HttpService {
 	_this := &HttpService{
 		_HttpPort:    _http_port,
 		_HttpsPort:   _https_port,
-		_SSLKey:      _ssl_key,
+		_SSLCert:     _ssl_cert,
+		_SSLKeyFile:  _ssl_key_file,
 		_SSLPassword: _ssl_pwd,
 		_Mux:         http.NewServeMux(),
 		_Handlers:    make(map[string]HttpAPI_Callback),
@@ -62,8 +68,7 @@ func Create(_http_port, _https_port int, _ssl_key, _ssl_pwd string) *HttpService
 		}
 	}
 
-	if _this._HttpsPort > 0 && _this._SSLKey != "" {
-		// 這裡假設 SSL Key 是 PEM 格式路徑，或是使用先前 Security.go 實作的加載方式
+	if _this._HttpsPort > 0 && _this._SSLCert != "" {
 		_this._HttpsServer = &http.Server{
 			Addr:    fmt.Sprintf(":%d", _this._HttpsPort),
 			Handler: _this._Mux,
@@ -190,10 +195,16 @@ func (_this *HttpService) Run() {
 		go func() {
 
 			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Https Listen at : %d", _this._HttpsPort))
-			Tools.ConsolePrint(_this._SSLKey)
-			Tools.ConsolePrint(_this._SSLPassword)
-			// Go 內建 ListenAndServeTLS 需要 Cert 與 Key 檔案路徑
-			if _err := _this._HttpsServer.ListenAndServeTLS(_this._SSLKey, _this._SSLPassword); _err != nil && _err != http.ErrServerClosed {
+
+			_cert, _err := _this.loadTLSCertificate()
+			if _err != nil {
+				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTPS TLS Load Error: %v", _err))
+				return
+			}
+
+			_this._HttpsServer.TLSConfig.Certificates = []tls.Certificate{_cert}
+
+			if _err = _this._HttpsServer.ListenAndServeTLS("", ""); _err != nil && _err != http.ErrServerClosed {
 
 				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTPS Listen Error: %v\n", _err))
 
@@ -221,6 +232,65 @@ func (_this *HttpService) Close() bool {
 // GetHttpPort 取得實際通訊埠
 func (_this *HttpService) GetHttpPort() int {
 	return _this._HttpPort
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *HttpService) loadTLSCertificate() (tls.Certificate, error) {
+	_ext := strings.ToLower(filepath.Ext(strings.TrimSpace(_this._SSLCert)))
+
+	switch _ext {
+	case ".p12", ".pfx":
+		return _this.loadTLSCertificateFromP12()
+	default:
+		return _this.loadTLSCertificateFromPEM()
+	}
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *HttpService) loadTLSCertificateFromPEM() (tls.Certificate, error) {
+	if strings.TrimSpace(_this._SSLCert) == "" || strings.TrimSpace(_this._SSLKeyFile) == "" {
+		return tls.Certificate{}, fmt.Errorf("ssl_key 與 ssl_key_file 必須同時設定，ssl_key_file 需對應 .key 檔案")
+	}
+
+	return tls.LoadX509KeyPair(_this._SSLCert, _this._SSLKeyFile)
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *HttpService) loadTLSCertificateFromP12() (tls.Certificate, error) {
+	_p12Bytes, _err := os.ReadFile(_this._SSLCert)
+	if _err != nil {
+		return tls.Certificate{}, _err
+	}
+
+	_blocks, _err := pkcs12.ToPEM(_p12Bytes, _this._SSLPassword)
+	if _err != nil {
+		return tls.Certificate{}, _err
+	}
+
+	var _certPEM []byte
+	var _keyPEM []byte
+
+	for _, _block := range _blocks {
+		if _block == nil {
+			continue
+		}
+
+		_encoded := pem.EncodeToMemory(_block)
+		if strings.Contains(_block.Type, "PRIVATE KEY") {
+			_keyPEM = append(_keyPEM, _encoded...)
+			continue
+		}
+
+		if strings.Contains(_block.Type, "CERTIFICATE") {
+			_certPEM = append(_certPEM, _encoded...)
+		}
+	}
+
+	if len(_certPEM) == 0 || len(_keyPEM) == 0 {
+		return tls.Certificate{}, fmt.Errorf("ssl_key 指向的 p12 內容缺少憑證或私鑰")
+	}
+
+	return tls.X509KeyPair(_certPEM, _keyPEM)
 }
 
 // -------------------------------------------------------------------------------------

@@ -25,6 +25,24 @@ type HttpAPI struct {
 }
 
 // -------------------------------------------------------------------------------------
+type trackedResponseWriter struct {
+	http.ResponseWriter
+	written bool
+}
+
+// -------------------------------------------------------------------------------------
+func (_w *trackedResponseWriter) WriteHeader(_statusCode int) {
+	_w.written = true
+	_w.ResponseWriter.WriteHeader(_statusCode)
+}
+
+// -------------------------------------------------------------------------------------
+func (_w *trackedResponseWriter) Write(_data []byte) (int, error) {
+	_w.written = true
+	return _w.ResponseWriter.Write(_data)
+}
+
+// -------------------------------------------------------------------------------------
 func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 
 	_uriOrg, _ := url.PathUnescape(_r.RequestURI)
@@ -42,11 +60,10 @@ func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 
 	_jwt = nil
 	_uriOrg = strings.Replace(_uriOrg, _h.resfulAPI+"/", "", 1)
-	_auth := _r.Header.Get("Authentication")
 	_items := strings.Split(_uriOrg, "/")
+	_auth := tokenFromRequest(_r)
 
-	if len(_auth) > 0 && strings.Contains(_auth, " ") {
-		_auth = strings.Split(_auth, " ")[1]
+	if len(_auth) > 0 {
 		_jwt = Security.VerifyToken(_auth, "", _r.RemoteAddr)
 	}
 
@@ -68,14 +85,19 @@ func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 		}
 	}
 
-	_resp := _h.callBack.Process(_w, _r, _jwt, _items, _params, _body)
+	_trackedWriter := &trackedResponseWriter{ResponseWriter: _w}
+	_resp := _h.callBack.Process(_trackedWriter, _r, _jwt, _items, _params, _body)
 
-	if _resp != nil {
-		SendRespone(_w, http.StatusOK, "application/json; charset=UTF-8", _resp)
+	if _trackedWriter.written {
 		return
 	}
 
-	http.Error(_w, "Not Found", http.StatusNotFound)
+	if _resp != nil {
+		SendResponse(_trackedWriter, http.StatusOK, "application/json; charset=UTF-8", _resp)
+		return
+	}
+
+	http.Error(_trackedWriter, "Not Found", http.StatusNotFound)
 }
 
 // -------------------------------------------------------------------------------------
@@ -85,6 +107,19 @@ func CreateHttpAPI(_impl HttpAPI_Callback) *HttpAPI {
 	}
 
 	return _httpAPI
+}
+
+// ------------------------------------------------------------------------------------
+func tokenFromRequest(_r *http.Request) string {
+	_auth := strings.TrimSpace(_r.Header.Get("Authentication"))
+	if _auth == "" {
+		_auth = strings.TrimSpace(_r.Header.Get("Authorization"))
+	}
+	if _auth != "" {
+		return _auth
+	}
+
+	return strings.TrimSpace(_r.URL.Query().Get("token"))
 }
 
 // ------------------------------------------------------------------------------------
