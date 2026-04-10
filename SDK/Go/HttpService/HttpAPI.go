@@ -11,6 +11,8 @@ import (
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Security"
 )
 
+const ResponseHandledMarker = "#response_handled#"
+
 // -------------------------------------------------------------------------------------
 // HttpAPI Callback 基礎類別
 // -------------------------------------------------------------------------------------
@@ -89,6 +91,10 @@ func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 	_resp := _h.callBack.Process(_trackedWriter, _r, _jwt, _items, _params, _body)
 
 	if _trackedWriter.written {
+		return
+	}
+
+	if string(_resp) == ResponseHandledMarker {
 		return
 	}
 

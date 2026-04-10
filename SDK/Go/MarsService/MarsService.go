@@ -3,6 +3,7 @@ package MarsService
 //-------------------------------------------------------------------------------------
 import (
 	"fmt"
+	"net/url"
 	"net/http"
 	"os"
 	"os/signal"
@@ -300,7 +301,7 @@ func (_this *MarsService) initCloseHook() {
 		_sig := <-_sigChan // 這會阻塞直到收到訊號
 
 		Tools.Log.Print(Tools.LL_Info, "- ")
-		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Get Closing Singal : %v, clean up ...", _sig))
+		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Get Closing Signal : %v, clean up ...", _sig))
 
 		_this.impl.BeforeServiceStop()
 		_this.ServiceInfo.Put("is_online", false)
@@ -409,15 +410,10 @@ func (_this *MarsService) initMQTTClient(_url string) {
 		return
 	}
 
-	// 1. 協定與埠號轉換 (http -> tcp:1883, https -> ssl:8883)
-	if strings.Contains(_url, ":") && strings.LastIndex(_url, ":") > 5 {
-		_url = _url[:strings.LastIndex(_url, ":")]
-	}
-	if strings.HasPrefix(_url, "http://") {
-		_url = strings.Replace(_url, "http", "tcp", 1) + ":1883"
-	} else if strings.HasPrefix(_url, "https://") {
-		_url = strings.Replace(_url, "https", "ssl", 1) + ":8883"
-	}
+	_tcpPort := _this.Property.OptInt("mqtt_tcp_port", 1883)
+	_sslPort := _this.Property.OptInt("mqtt_ssl_port", 8883)
+	_url = _this.resolveMQTTBrokerURL(_url, _tcpPort, _sslPort)
+	Tools.Log.Print(Tools.LL_Info, "MQTT broker target: %s", _url)
 
 	// 2. 設定專案 ID 與主題
 	_topicID := _this.MarsClient.ProjID
@@ -465,6 +461,40 @@ func (_this *MarsService) initMQTTClient(_url string) {
 	}
 
 	_this.ResetMQTTClient(_topic)
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *MarsService) resolveMQTTBrokerURL(_rawURL string, _tcpPort int, _sslPort int) string {
+	_parsed, _err := url.Parse(strings.TrimSpace(_rawURL))
+	if _err != nil || _parsed == nil {
+		return _rawURL
+	}
+
+	_host := _parsed.Hostname()
+	if _host == "" {
+		return _rawURL
+	}
+
+	switch _parsed.Scheme {
+	case "https":
+		return fmt.Sprintf("ssl://%s:%d", _host, _sslPort)
+	case "http":
+		return fmt.Sprintf("tcp://%s:%d", _host, _tcpPort)
+	case "ssl", "tls", "mqtts":
+		return fmt.Sprintf("ssl://%s:%d", _host, _sslPort)
+	case "tcp", "mqtt":
+		return fmt.Sprintf("tcp://%s:%d", _host, _tcpPort)
+	case "ws", "wss":
+		if _parsed.Port() != "" {
+			return fmt.Sprintf("%s://%s", _parsed.Scheme, _parsed.Host)
+		}
+		if _parsed.Scheme == "wss" {
+			return fmt.Sprintf("wss://%s:%d", _host, _this.Property.OptInt("mqtt_wss_port", 8884))
+		}
+		return fmt.Sprintf("ws://%s:%d", _host, _this.Property.OptInt("mqtt_ws_port", 1884))
+	default:
+		return _rawURL
+	}
 }
 
 // -------------------------------------------------------------------------------------
@@ -524,12 +554,12 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 // onDefaultMQTT 處理系統預設命令
 func (_this *MarsService) onMQTTDefault(_topic, _payload string) {
 
-	_thisgObj := MarsJSON.NewJSONObject(_payload)
-	_cmdObj := _thisgObj
-	_cmd := _thisgObj.OptString("api", "")
+	_msgObj := MarsJSON.NewJSONObject(_payload)
+	_cmdObj := _msgObj
+	_cmd := _msgObj.OptString("api", "")
 
-	if _thisgObj.Has("values") {
-		_values := _thisgObj.OptJSONArray("values")
+	if _msgObj.Has("values") {
+		_values := _msgObj.OptJSONArray("values")
 		if _values != nil && _values.Length() > 0 {
 			_cmdObj = _values.OptJSONObject(0)
 			_cmd = _cmdObj.OptString("cmd", _cmdObj.OptString("api", ""))
@@ -698,7 +728,7 @@ func (_this *MarsService) StopService() bool {
 	// 3. 關閉網路連線資源
 	_this.CloseNetService()
 
-	Tools.Log.Print(Tools.LL_Info, "Service Stoped")
+	Tools.Log.Print(Tools.LL_Info, "Service Stopped")
 	return true
 }
 

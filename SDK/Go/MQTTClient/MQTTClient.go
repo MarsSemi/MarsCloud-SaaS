@@ -1,6 +1,8 @@
 package MQTTClient
 
 import (
+	"crypto/tls"
+	"strings"
 	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Tools"
@@ -100,7 +102,9 @@ func (_this *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 	_opts.SetKeepAlive(time.Duration(_options.KeepAlive) * time.Second)
 	_opts.SetConnectTimeout(time.Duration(_options.ConnectionTimeout) * time.Second)
 	_opts.SetAutoReconnect(_options.AutomaticReconnect)
-	//_opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
+	if strings.HasPrefix(_options.Server, "ssl://") || strings.HasPrefix(_options.Server, "wss://") {
+		_opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
+	}
 
 	// 設定連線遺失回調
 	_opts.OnConnectionLost = func(_c mqtt.Client, _err error) {
@@ -144,8 +148,8 @@ func (_this *MQTTClient) Subscribe(_topic string, _qos int) error {
 }
 
 // -------------------------------------------------------------------------------------
-func (_this *MQTTClient) Publish(_topic string, _thisessage *MQTTMessage) error {
-	_token := _this._Client.Publish(_topic, _thisessage._Qos, _thisessage._Retained, _thisessage._Payload)
+func (_this *MQTTClient) Publish(_topic string, _message *MQTTMessage) error {
+	_token := _this._Client.Publish(_topic, _message._Qos, _message._Retained, _message._Payload)
 	_token.Wait()
 	return _token.Error()
 }

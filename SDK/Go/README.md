@@ -315,6 +315,14 @@ import "github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/HttpService"
 - WebSocket 升級
 - CORS 支援
 
+若 callback 想明確表示 response 已經自行處理完成，可回傳：
+
+```go
+return []byte(HttpService.ResponseHandledMarker)
+```
+
+這樣 `HttpAPI` 不會再自動補 `SendResponse(...)`。
+
 **服務 API 自我描述建議**：
 
 新版 Go service 建議至少提供兩支基礎入口：

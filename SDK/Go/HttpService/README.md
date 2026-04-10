@@ -27,6 +27,7 @@
 - `(_this *HttpService) Run()`
 - `(_this *HttpService) Close() bool`
 - `SendResponse(_w http.ResponseWriter, _no int, _contentType string, _content []byte)`
+- `ResponseHandledMarker`
 
 ## Callback 介面
 
@@ -75,6 +76,23 @@ svc.Run()
 - query string 的 `token`
 
 若 callback 已經自己輸出 response，外層不會再次補 `WriteHeader`，避免出現 `superfluous response.WriteHeader`。
+
+若 callback 是自己完整處理 response，但沒有直接寫入 `ResponseWriter`，可以回傳：
+
+```go
+return []byte(HttpService.ResponseHandledMarker)
+```
+
+這會告訴 `HttpAPI`：
+
+- 不要再自動包 `SendResponse(...)`
+- 不要再補 `404 Not Found`
+
+適合用在以下情境：
+
+- callback 已經自行決定回應流程
+- callback 走的是特殊串流或外部代理流程
+- callback 想明確表示「這個 request 已處理完成」
 
 ## HTTPS 憑證規則
 

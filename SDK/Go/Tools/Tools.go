@@ -297,7 +297,7 @@ func GetImageFromURL(_imageURL string, _authorization string, _timeoutMs int) []
 // -------------------------------------------------------------------------------------
 // 網路功能 (Net)
 // -------------------------------------------------------------------------------------
-func GetLocalMACAddress(_seperator string) string {
+func GetLocalMACAddress(_separator string) string {
 	defer func() {
 		// 捕捉可能發生的異常 (如之前 diag.go 實作的機制)
 		if _r := recover(); _r != nil {
@@ -318,7 +318,7 @@ func GetLocalMACAddress(_seperator string) string {
 				for _i, _b := range _mac {
 					_macStrings[_i] = fmt.Sprintf("%02X", _b)
 				}
-				_list = append(_list, strings.Join(_macStrings, _seperator))
+				_list = append(_list, strings.Join(_macStrings, _separator))
 			}
 		}
 
@@ -329,12 +329,12 @@ func GetLocalMACAddress(_seperator string) string {
 	}
 
 	// 2. 備案：透過指令獲取
-	return GetLocalMACAddressByConsoleCMD(_seperator)
+	return GetLocalMACAddressByConsoleCMD(_separator)
 }
 
 // -------------------------------------------------------------------------------------
 // GetLocalMACAddressByConsoleCMD 執行系統指令獲取 MAC
-func GetLocalMACAddressByConsoleCMD(_seperator string) string {
+func GetLocalMACAddressByConsoleCMD(_separator string) string {
 	var _cmd *exec.Cmd
 	// 根據 OS 選擇指令
 	if runtime.GOOS == "windows" {
@@ -379,8 +379,8 @@ func GetLocalMACAddressByConsoleCMD(_seperator string) string {
 	_cmd.Wait()
 
 	// 統一分隔符號與大小寫
-	_mac = strings.ReplaceAll(_mac, ":", _seperator)
-	_mac = strings.ReplaceAll(_mac, "-", _seperator)
+	_mac = strings.ReplaceAll(_mac, ":", _separator)
+	_mac = strings.ReplaceAll(_mac, "-", _separator)
 
 	return strings.ToUpper(_mac)
 }
@@ -527,7 +527,7 @@ func SendCommunityText(_vendor, _from, _to, _text string) string {
 // -------------------------------------------------------------------------------------
 // 命令執行 (Shell CMD)
 // -------------------------------------------------------------------------------------
-func ShellCMDWithPah(path string, cmds ...string) *exec.Cmd {
+func ShellCMDWithPath(path string, cmds ...string) *exec.Cmd {
 	var cmd *exec.Cmd
 	fullCmd := strings.Join(cmds, " ")
 
@@ -548,7 +548,7 @@ func ShellCMDWithPah(path string, cmds ...string) *exec.Cmd {
 
 // -------------------------------------------------------------------------------------
 func ShellCMD(cmds ...string) *exec.Cmd {
-	return ShellCMDWithPah("", cmds...)
+	return ShellCMDWithPath("", cmds...)
 }
 
 // -------------------------------------------------------------------------------------
