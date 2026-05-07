@@ -66,7 +66,9 @@ func (_this *AsyncTaskProcessor) ProcessAPI(_payload string) {
 		_resp := Tools.HttpPost(_this._MainServerWebhook+_api, _token, "", _body, 7200000)
 
 		_content.Remove("token") // 移除 token 不回傳
+		// 同時送出 respone（與 Java 舊版相容）與 response（拼字修正版），讓新舊接收端都能解析
 		_content.Put("respone", _resp)
+		_content.Put("response", _resp)
 		_payload = _content.ToString()
 
 		// 2. 回傳結果給主伺服器 (最後執行的 finally 區塊)

@@ -90,6 +90,12 @@ func (_this *JSONObject) OptInt(_key string, _defaultValue int) int {
 		switch _v := _val.(type) {
 		case float64: // Go json 預設數字為 float64
 			return int(_v)
+		case int:
+			return _v
+		case int32:
+			return int(_v)
+		case int64:
+			return int(_v)
 		case string:
 			// 模擬 Java 的數字過濾邏輯
 			_reg := regexp.MustCompile(`[^0-9]`)
@@ -109,6 +115,12 @@ func (_this *JSONObject) OptLong(_key string, _defaultValue int64) int64 {
 		switch _v := _val.(type) {
 		case float64:
 			return int64(_v)
+		case int:
+			return int64(_v)
+		case int32:
+			return int64(_v)
+		case int64:
+			return _v
 		case string:
 			_reg := regexp.MustCompile(`[^0-9]`)
 			_clean := _reg.ReplaceAllString(_v, "")
@@ -160,11 +172,8 @@ func (_this *JSONObject) OptJSONArray(_key string) *JSONArray {
 // -------------------------------------------------------------------------------------
 func (_this *JSONObject) Opt(_key string) any {
 	if _val, _ok := _this._Src[_key]; _ok {
-		if _a, _isSlice := _val.([]interface{}); _isSlice {
-			return _a
-		}
+		return _val
 	}
-
 	return nil
 }
 

@@ -14,6 +14,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsJSON"
@@ -49,6 +50,7 @@ type JWTProcessor struct {
 	_PrivateKey *rsa.PrivateKey
 	_AESBlock   cipher.Block
 	_AES_IV     []byte
+	_mu         sync.RWMutex // 保護以上欄位的並行讀寫；外部 method 拿鎖，內部 *Locked helper 不再拿
 }
 
 // -------------------------------------------------------------------------------------
@@ -88,6 +90,13 @@ func (_this *JWTProcessor) NewRSAKey(_method string, _pubPath string, _priPath s
 // -------------------------------------------------------------------------------------
 // LoadRSAKey 從位元組載入 RSA 金鑰
 func (_this *JWTProcessor) LoadRSAKey(_pubKey []byte, _priKey []byte) bool {
+	_this._mu.Lock()
+	defer _this._mu.Unlock()
+	return _this.loadRSAKeyLocked(_pubKey, _priKey)
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *JWTProcessor) loadRSAKeyLocked(_pubKey []byte, _priKey []byte) bool {
 
 	if len(_pubKey) > 0 && len(_priKey) > 0 {
 
@@ -130,7 +139,10 @@ func (_this *JWTProcessor) LoadRSAKey(_pubKey []byte, _priKey []byte) bool {
 func (_this *JWTProcessor) LoadRSAKeyFromFile(_pubPath string, _priPath string) bool {
 	_pubBinary, _ := os.ReadFile(_pubPath)
 	_priBinary, _ := os.ReadFile(_priPath)
-	_resp := _this.LoadRSAKey(_pubBinary, _priBinary)
+
+	_this._mu.Lock()
+	_resp := _this.loadRSAKeyLocked(_pubBinary, _priBinary)
+	_this._mu.Unlock()
 
 	if _pubBinary == nil || _priBinary == nil {
 		_this.SaveRSAKey(_pubPath, _priPath)
@@ -140,6 +152,9 @@ func (_this *JWTProcessor) LoadRSAKeyFromFile(_pubPath string, _priPath string) 
 
 // -------------------------------------------------------------------------------------
 func (_this *JWTProcessor) SaveRSAKey(_pubPath string, _priPath string) bool {
+	_this._mu.RLock()
+	defer _this._mu.RUnlock()
+
 	if _this._PublicKey != nil && _this._PrivateKey != nil {
 		_pubASN1, _ := x509.MarshalPKIXPublicKey(_this._PublicKey)
 		_priASN1, _ := x509.MarshalPKCS8PrivateKey(_this._PrivateKey)
@@ -159,12 +174,25 @@ func (_this *JWTProcessor) SaveRSAKey(_pubPath string, _priPath string) bool {
 //-------------------------------------------------------------------------------------
 
 func (_this *JWTProcessor) LoadAESKey(_key []byte) bool {
+	_this._mu.Lock()
+	defer _this._mu.Unlock()
+	return _this.loadAESKeyLocked(_key, 16)
+}
 
+// -------------------------------------------------------------------------------------
+func (_this *JWTProcessor) LoadAESKey32(_key []byte) bool {
+	_this._mu.Lock()
+	defer _this._mu.Unlock()
+	return _this.loadAESKeyLocked(_key, 32)
+}
+
+// -------------------------------------------------------------------------------------
+func (_this *JWTProcessor) loadAESKeyLocked(_key []byte, _size int) bool {
 	if len(_key) > 0 {
 		_this._SecretKey = _key
 	} else {
 		Tools.Log.Print(Tools.LL_Warning, "JWS AES Key is empty, generating ...")
-		_this._SecretKey = make([]byte, 16) // AES-128
+		_this._SecretKey = make([]byte, _size)
 		io.ReadFull(rand.Reader, _this._SecretKey)
 	}
 
@@ -172,38 +200,22 @@ func (_this *JWTProcessor) LoadAESKey(_key []byte) bool {
 	if _err != nil {
 		return false
 	}
-
 	_this._AESBlock = _block
 	Tools.Log.Print(Tools.LL_Info, "JWS AES Key is ready")
 	return true
 }
 
 // -------------------------------------------------------------------------------------
-func (_this *JWTProcessor) LoadAESKey32(_key []byte) bool {
-
-	if len(_key) > 0 {
-		_this._SecretKey = _key
-	} else {
-		Tools.Log.Print(Tools.LL_Warning, "JWS AES32 Key is empty, generating ...")
-		_this._SecretKey = make([]byte, 32) // AES-256
-		io.ReadFull(rand.Reader, _this._SecretKey)
-	}
-
-	_block, _err := aes.NewCipher(_this._SecretKey)
-	if _err != nil {
-		return false
-	}
-	_this._AESBlock = _block
-	Tools.Log.Print(Tools.LL_Info, "JWS AES32 Key is ready")
-	return true
-}
-
-// -------------------------------------------------------------------------------------
 func (_this *JWTProcessor) LoadAESKeyFromFile(_path string) bool {
 	_key, _ := os.ReadFile(_path)
-	_resp := _this.LoadAESKey(_key)
+
+	_this._mu.Lock()
+	_resp := _this.loadAESKeyLocked(_key, 16)
+	_secret := _this._SecretKey
+	_this._mu.Unlock()
+
 	if _key == nil {
-		os.WriteFile(_path, _this._SecretKey, 0600)
+		os.WriteFile(_path, _secret, 0600)
 	}
 	return _resp
 }
@@ -213,6 +225,9 @@ func (_this *JWTProcessor) LoadAESKeyFromFile(_path string) bool {
 // -------------------------------------------------------------------------------------
 // CreateToken 建立 JWE Token (支援 RSA 與 AES/Direct)
 func (_this *JWTProcessor) CreateToken(_method string, _root map[string]interface{}) string {
+	_this._mu.RLock()
+	defer _this._mu.RUnlock()
+
 	_payload, _ := json.Marshal(_root)
 	_headers := jwe.NewHeaders()
 	_headers.Set("com", "mars-semi.com")
@@ -250,6 +265,9 @@ func (_this *JWTProcessor) DecryptToken(_tokenStr string, _ignoreExp bool) *Mars
 	if _tokenStr == "" {
 		return nil
 	}
+
+	_this._mu.RLock()
+	defer _this._mu.RUnlock()
 
 	var _decrypted []byte
 	var _err error
@@ -290,6 +308,9 @@ func (_this *JWTProcessor) DecryptToken(_tokenStr string, _ignoreExp bool) *Mars
 // AES Data 加解密 (CBC)
 // -------------------------------------------------------------------------------------
 func (_this *JWTProcessor) EncryptAESData(_id string) string {
+	_this._mu.RLock()
+	defer _this._mu.RUnlock()
+
 	if _this._AESBlock == nil {
 		return ""
 	}
@@ -307,6 +328,9 @@ func (_this *JWTProcessor) EncryptAESData(_id string) string {
 
 // -------------------------------------------------------------------------------------
 func (_this *JWTProcessor) DecryptAESData(_data string) string {
+	_this._mu.RLock()
+	defer _this._mu.RUnlock()
+
 	if _this._AESBlock == nil {
 		return ""
 	}

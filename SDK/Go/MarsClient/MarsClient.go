@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsJSON"
@@ -42,6 +43,10 @@ type MarsClient struct {
 	SecretKey string
 
 	EnableLoadBalance bool
+
+	// mu 保護以上欄位的並行讀寫；外部仍可直接讀 AuthToken/Account 等欄位（單一指標讀取在 Go 多平台基本原子），
+	// 但內部寫入路徑（ReLogin / UpdateServerURL / resetServerURLs）以及讀寫密集的 GetServerURL 必須走鎖
+	mu sync.RWMutex
 }
 
 // -------------------------------------------------------------------------------------
@@ -55,18 +60,28 @@ func Create() *MarsClient {
 // 基礎通訊與登入
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) LocalLogin(_proj string) bool {
+	_this.mu.Lock()
 	_this.ProjID = _proj
+	_this.mu.Unlock()
+
 	_api := "/auth/login?"
 	if _proj != "" {
 		_api = "/auth/login?proj=" + _proj
 	}
 
-	_this.AuthToken = _this.CallAPI(_api, "{}", _DefaultTimeOut)
-	return _this.AuthToken != ""
+	_token := _this.CallAPI(_api, "{}", _DefaultTimeOut)
+
+	_this.mu.Lock()
+	_this.AuthToken = _token
+	_this.mu.Unlock()
+
+	return _token != ""
 }
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) resetServerURLs(_url string) {
+	_this.mu.Lock()
+	defer _this.mu.Unlock()
 	if len(_url) > 4 {
 		_cleanURL := strings.ReplaceAll(_url, " ", "")
 		_this.ServerURLs = strings.Split(_cleanURL, ",")
@@ -124,6 +139,8 @@ func (_this *MarsClient) LoginByKey(_url string, _key string) bool {
 // ReLogin 重新執行登入流程
 func (_this *MarsClient) ReLogin() bool {
 
+	_token := ""
+
 	if len(_this.Account) > 0 && len(_this.Password) > 0 {
 		_payload := MarsJSON.NewJSONObject(nil)
 		_payload.Put("usr", _this.Account)
@@ -134,20 +151,24 @@ func (_this *MarsClient) ReLogin() bool {
 		if len(_this.ProjID) > 0 {
 			_api = "/auth/login?proj=" + _this.ProjID
 		}
-		_this.AuthToken = Tools.HttpPost(_this.GetServerURL()+_api, "", "", _payload.ToString(), 0)
+		_token = Tools.HttpPost(_this.GetServerURL()+_api, "", "", _payload.ToString(), 0)
 
 	} else if len(_this.SecretKey) > 0 {
 		_urlStr := _this.GetServerURL() + "/auth/get_auth_by_key?"
 		if len(_this.ProjID) > 0 {
 			_urlStr += "proj=" + _this.ProjID
 		}
-		_this.AuthToken = Tools.HttpPost(_urlStr, "", "", _this.SecretKey, 0)
+		_token = Tools.HttpPost(_urlStr, "", "", _this.SecretKey, 0)
 	} else if len(_this.AuthToken) > 0 {
 		// 遵循 Java 原始邏輯：AuthToken 存在時嘗試使用 SecretKey 換取新 Auth
-		_this.AuthToken = Tools.HttpPost(_this.GetServerURL()+"/auth/get_auth_by_key?", "", "", _this.SecretKey, 0)
+		_token = Tools.HttpPost(_this.GetServerURL()+"/auth/get_auth_by_key?", "", "", _this.SecretKey, 0)
 	}
 
-	if len(_this.AuthToken) > 10 {
+	_this.mu.Lock()
+	_this.AuthToken = _token
+	_this.mu.Unlock()
+
+	if len(_token) > 10 {
 		_this.UpdateServerURL()
 		return true
 	}
@@ -157,26 +178,37 @@ func (_this *MarsClient) ReLogin() bool {
 // -------------------------------------------------------------------------------------
 // UpdateServerURL 更新負載平衡的伺服器清單
 func (_this *MarsClient) UpdateServerURL() {
-	if _this.EnableLoadBalance && len(_this.AuthToken) > 10 {
-		_api := _this.GetServerURL() + "/api/get_broker_list?"
-		_resp := Tools.HttpPost(_api, _this.AuthToken, "", "", 0) // 預設 3000ms
-
-		if _resp != "" {
-			_payload := MarsJSON.NewJSONObject(_resp)
-			_results := _payload.OptJSONArray("results")
-
-			if _results != nil && _results.Length() > 0 {
-				_this.ServerURLs = make([]string, _results.Length())
-				for _i := 0; _i < _results.Length(); _i++ {
-					_this.ServerURLs[_i] = _results.OptString(_i, "")
-				}
-			}
-		}
+	if !_this.EnableLoadBalance || len(_this.AuthToken) <= 10 {
+		return
 	}
+
+	// HTTP 呼叫不在鎖內，避免阻塞所有 GetServerURL 讀取
+	_api := _this.GetServerURL() + "/api/get_broker_list?"
+	_resp := Tools.HttpPost(_api, _this.AuthToken, "", "", 0)
+	if _resp == "" {
+		return
+	}
+
+	_payload := MarsJSON.NewJSONObject(_resp)
+	_results := _payload.OptJSONArray("results")
+	if _results == nil || _results.Length() == 0 {
+		return
+	}
+
+	_urls := make([]string, _results.Length())
+	for _i := 0; _i < _results.Length(); _i++ {
+		_urls[_i] = _results.OptString(_i, "")
+	}
+
+	_this.mu.Lock()
+	_this.ServerURLs = _urls
+	_this.mu.Unlock()
 }
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) GetServerURLByIndex(_index int) string {
+	_this.mu.RLock()
+	defer _this.mu.RUnlock()
 	if _index >= 0 && _index < len(_this.ServerURLs) {
 		return _this.ServerURLs[_index]
 	}
@@ -185,6 +217,8 @@ func (_this *MarsClient) GetServerURLByIndex(_index int) string {
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) GetServerURL() string {
+	_this.mu.RLock()
+	defer _this.mu.RUnlock()
 	if len(_this.ServerURLs) == 0 {
 		return ""
 	}
@@ -200,7 +234,7 @@ func (_this *MarsClient) GetServerURL() string {
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) CallAPI(_api string, _payload string, _timeout int) string {
 	_url := _this.GetServerURL() + _api
-	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, 0)
+	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, _timeout)
 }
 
 // -------------------------------------------------------------------------------------
@@ -210,7 +244,7 @@ func (_this *MarsClient) CallAPISpecify(_url string, _api string, _payload strin
 		return ""
 	}
 
-	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, 0)
+	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, _timeout)
 }
 
 //-------------------------------------------------------------------------------------
@@ -526,7 +560,10 @@ func (_this *MarsClient) UnzipData(_dataBase64 string) *MarsJSON.JSONObject {
 
 	_results := MarsJSON.NewJSONArray(nil)
 	for _, _file := range _zipReader.File {
-		_rc, _ := _file.Open()
+		_rc, _err := _file.Open()
+		if _err != nil || _rc == nil {
+			continue
+		}
 		_buf := new(bytes.Buffer)
 		io.Copy(_buf, _rc)
 		_rc.Close()
@@ -553,7 +590,10 @@ func (_this *MarsClient) UnzipDataHuge(_dataBase64 string) []string {
 	_reader, _err := zip.NewReader(bytes.NewReader(_zipBytes), int64(len(_zipBytes)))
 	if _err == nil {
 		for _, _file := range _reader.File {
-			_rc, _ := _file.Open()
+			_rc, _openErr := _file.Open()
+			if _openErr != nil || _rc == nil {
+				continue
+			}
 			_buf := new(bytes.Buffer)
 			io.Copy(_buf, _rc)
 			_rc.Close()

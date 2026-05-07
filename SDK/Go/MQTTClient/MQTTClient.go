@@ -103,7 +103,7 @@ func (_this *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 	_opts.SetConnectTimeout(time.Duration(_options.ConnectionTimeout) * time.Second)
 	_opts.SetAutoReconnect(_options.AutomaticReconnect)
 	if strings.HasPrefix(_options.Server, "ssl://") || strings.HasPrefix(_options.Server, "wss://") {
-		_opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: true})
+		_opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: Tools.DefaultInsecureTLS})
 	}
 
 	// 設定連線遺失回調
@@ -138,6 +138,9 @@ func (_this *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 
 // -------------------------------------------------------------------------------------
 func (_this *MQTTClient) Subscribe(_topic string, _qos int) error {
+	if _this._Client == nil {
+		return nil
+	}
 	if _token := _this._Client.Subscribe(_topic, byte(_qos), nil); _token.Wait() && _token.Error() != nil {
 
 		Tools.Log.Print(Tools.LL_Error, "Subscribe Error : %v\n", _topic)
@@ -149,6 +152,9 @@ func (_this *MQTTClient) Subscribe(_topic string, _qos int) error {
 
 // -------------------------------------------------------------------------------------
 func (_this *MQTTClient) Publish(_topic string, _message *MQTTMessage) error {
+	if _this._Client == nil {
+		return nil
+	}
 	_token := _this._Client.Publish(_topic, _message._Qos, _message._Retained, _message._Payload)
 	_token.Wait()
 	return _token.Error()
@@ -156,11 +162,17 @@ func (_this *MQTTClient) Publish(_topic string, _message *MQTTMessage) error {
 
 // -------------------------------------------------------------------------------------
 func (_this *MQTTClient) Disconnect(_quiesce int) {
+	if _this._Client == nil {
+		return
+	}
 	_this._Client.Disconnect(uint(_quiesce))
 }
 
 // -------------------------------------------------------------------------------------
 func (_this *MQTTClient) IsConnected() bool {
+	if _this._Client == nil {
+		return false
+	}
 	return _this._Client.IsConnected()
 }
 

@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -118,14 +120,18 @@ type MarsService struct {
 	IsDebugData          bool
 	RestartAfterConflict bool
 
-	syncTimer       *time.Ticker
-	defaultTimer    *time.Ticker // 用於 AutoGC
-	serviceRegCheck *time.Timer  // 檢查註冊狀態
+	syncTimer    *time.Ticker
+	defaultTimer *time.Ticker // 用於 AutoGC
 
 	stopChan chan struct{}
+	stopOnce sync.Once // 確保 close(stopChan) 只執行一次，防止 RestartService/Shutdown 重複觸發 panic
 
-	autoRestartTime MarsJSON.JSONArray
-	impl            IMarsService // 指向具體的實作物件_
+	autoRestartTime    MarsJSON.JSONArray
+	autoRestartMinutes []string       // restart_time 解析後的 "HH:MM" 清單，無效項目會被丟棄
+	restartLocation    *time.Location // restart_time 比對所用時區，預設 time.Local
+	registered         bool           // 服務是否已成功完成首次註冊（含 properties 上傳）
+	propertyMu         sync.RWMutex   // 保護 Property 在 heartbeat 讀取與 HTTP /system/update_setting 寫入之間的並行存取
+	impl               IMarsService   // 指向具體的實作物件_
 }
 
 // -------------------------------------------------------------------------------------
@@ -166,6 +172,11 @@ func (_this *MarsService) init(_propertyFileName string) {
 	_this.password = _this.Property.OptString("mars_cloud_password", "")
 	_this.webHook = _this.getWebHook()
 	_this.autoRestartTime = *_this.Property.OptJSONArray("restart_time") //["6:00:00", "14:12:24"]
+	_this.autoRestartMinutes = parseRestartMinutes(&_this.autoRestartTime)
+	_this.restartLocation = resolveRestartLocation(_this.Property.OptString("restart_timezone", ""))
+
+	// 預設仍維持舊行為（略過 TLS 驗證），明確設成 false 才會啟用憑證驗證；同時影響 HttpPost 與 MQTT 連線
+	Tools.DefaultInsecureTLS = _this.Property.OptBoolean("tls_skip_verify", true)
 
 	_this.ResetWebService()
 
@@ -175,6 +186,50 @@ func (_this *MarsService) init(_propertyFileName string) {
 
 	Tools.Log.Print(Tools.LL_Info, "Service ID : %s", _this.ServiceID)
 	Tools.Log.Print(Tools.LL_Info, "Process ID : %d", Tools.GetPID(nil))
+
+	// 容器若 /etc/localtime 沒設會 fallback UTC，明確輸出有助於排查 restart_time 沒按預期觸發的問題
+	_zoneName, _offset := time.Now().In(_this.restartLocation).Zone()
+	Tools.Log.Print(Tools.LL_Info, "Restart Timezone : %s (%s, UTC%+d)", _this.restartLocation.String(), _zoneName, _offset/3600)
+}
+
+// -------------------------------------------------------------------------------------
+// parseRestartMinutes 把 restart_time 各種輸入格式（"6:00", "06:00", "6:00:00" 等）統一成 "HH:MM"
+// 解析失敗的項目會被丟棄並記 warning，避免 _targetTime[:5] 直接切片造成靜默 miss
+func parseRestartMinutes(_arr *MarsJSON.JSONArray) []string {
+	_result := make([]string, 0, _arr.Length())
+	for _i := 0; _i < _arr.Length(); _i++ {
+		_raw := strings.TrimSpace(_arr.OptString(_i, ""))
+		if _raw == "" {
+			continue
+		}
+
+		_parts := strings.Split(_raw, ":")
+		if len(_parts) < 2 {
+			Tools.Log.Print(Tools.LL_Warning, "Invalid restart_time entry %q, skipped", _raw)
+			continue
+		}
+		_h, _err1 := strconv.Atoi(strings.TrimSpace(_parts[0]))
+		_m, _err2 := strconv.Atoi(strings.TrimSpace(_parts[1]))
+		if _err1 != nil || _err2 != nil || _h < 0 || _h > 23 || _m < 0 || _m > 59 {
+			Tools.Log.Print(Tools.LL_Warning, "Invalid restart_time entry %q, skipped", _raw)
+			continue
+		}
+		_result = append(_result, fmt.Sprintf("%02d:%02d", _h, _m))
+	}
+	return _result
+}
+
+// -------------------------------------------------------------------------------------
+func resolveRestartLocation(_name string) *time.Location {
+	_name = strings.TrimSpace(_name)
+	if _name == "" {
+		return time.Local
+	}
+	if _loc, _err := time.LoadLocation(_name); _err == nil {
+		return _loc
+	}
+	Tools.Log.Print(Tools.LL_Warning, "Invalid restart_timezone %q, fallback to local", _name)
+	return time.Local
 }
 
 // -------------------------------------------------------------------------------------
@@ -209,6 +264,11 @@ func (_this *MarsService) Start() {
 		//延遲啟動一下
 		time.Sleep(100 * time.Millisecond)
 
+		// 偵測同名舊實例並關閉，避免服務重複啟動（取代外部 PID 檔機制）
+		if Tools.KillSiblingInstance() > 0 {
+			time.Sleep(500 * time.Millisecond)
+		}
+
 		// 檢查端口衝突
 		_this.checkPortConflict()
 
@@ -222,14 +282,9 @@ func (_this *MarsService) Start() {
 				_this.startLocalMQTTServer()
 			}
 
+			// 雲端連線改成背景重試，避免雲端不可達時 HTTP server 永遠不啟動、操作介面（含 /system）也救不了
 			if _hasCloudConfig {
-				_this.initMarsClient(_url, _this.account, _this.password, _proj)
-
-				if _this.MarsClient != nil {
-					_this.initMQTTClient(_this.MarsClient.GetServerURL())
-					_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
-					_this.doRegistry(true)
-				}
+				go _this.connectCloudInBackground(_url, _proj)
 			} else {
 				Tools.Log.Print(Tools.LL_Info, "MarsCloud disabled: mars_cloud_url/account/password 缺少設定，使用一般 Server 模式啟動")
 			}
@@ -303,15 +358,30 @@ func (_this *MarsService) initCloseHook() {
 		Tools.Log.Print(Tools.LL_Info, "- ")
 		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Get Closing Signal : %v, clean up ...", _sig))
 
-		_this.impl.BeforeServiceStop()
-		_this.ServiceInfo.Put("is_online", false)
-		_this.doRegistry(false)
+		// 走統一的 StopService 路徑：BeforeServiceStop / 雲端離線 / 關閉網路 / 廣播 stopChan 一次到位
+		_this.StopService()
 
 		Tools.Log.Print(Tools.LL_Info, "Clean up finish, process exit")
 		Tools.Log.Print(Tools.LL_Info, "- ")
 
 		os.Exit(0)
 	}()
+}
+
+// -------------------------------------------------------------------------------------
+// connectCloudInBackground 在獨立 goroutine 完成雲端登入、MQTT 連線與首次註冊
+// 設計理由：initMarsClient 內含無限重試 loop，若放在 startup 路徑會導致雲端不可達時整個 HTTP server 也無法啟動
+func (_this *MarsService) connectCloudInBackground(_url string, _proj string) {
+	defer Tools.GlobalRecovery()
+
+	_this.initMarsClient(_url, _this.account, _this.password, _proj)
+	if _this.MarsClient == nil {
+		return
+	}
+
+	_this.initMQTTClient(_this.MarsClient.GetServerURL())
+	_this.AsyncTaskProcessor = AsyncTaskProcessor.Create(_this.MarsClient, _this.webHook)
+	_this.doRegistry(true)
 }
 
 // -------------------------------------------------------------------------------------
@@ -343,12 +413,14 @@ func (_this *MarsService) doRegistry(_resetKey bool) bool {
 		_info.Put("pid", os.Getpid())
 
 		if _this.MarsClient.RegistryService(_info.ToString(), _resetKey) {
-			if _this.serviceRegCheck != nil {
-				_this.serviceRegCheck.Stop()
-				_this.serviceRegCheck = nil
-				// 註冊屬性配置
-				_this.MarsClient.RegistryServiceProperties(_this.ServiceID, _this.Property.ToString())
-
+			// 首次註冊成功才上傳 properties 並記錄一次 success log，避免每次 heartbeat 都重複
+			if !_this.registered {
+				// 與 MergePropertyFrom 互斥，避免 Property 序列化時被並行 mutation
+				_this.propertyMu.RLock()
+				_propStr := _this.Property.ToString()
+				_this.propertyMu.RUnlock()
+				_this.MarsClient.RegistryServiceProperties(_this.ServiceID, _propStr)
+				_this.registered = true
 				Tools.Log.Print(Tools.LL_Info, "Service registry success")
 			}
 			return true
@@ -508,19 +580,19 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 	go func() {
 		defer func() { recover() }()
 
-		// 模擬 Java 版的重連與主題重整邏輯
-		_tick := 0
-		for {
-			if _this.MQTTClient.IsConnected() {
-				break
-			}
+		// 等待重連，最多 5 分鐘並聽 stopChan，避免服務關閉後 goroutine 永久殘留
+		_ticker := time.NewTicker(1 * time.Second)
+		defer _ticker.Stop()
+		_timeout := time.After(5 * time.Minute)
 
-			time.Sleep(1 * time.Second)
-			_tick++
-
-			if _tick >= 5 {
-				_tick = 0
-				// 此處依賴底層自動重連，或手動觸發連線
+		for !_this.MQTTClient.IsConnected() {
+			select {
+			case <-_ticker.C:
+			case <-_this.stopChan:
+				return
+			case <-_timeout:
+				Tools.Log.Print(Tools.LL_Warning, "MQTT reset wait timeout, abort")
+				return
 			}
 		}
 
@@ -578,12 +650,24 @@ func (_this *MarsService) onMQTTDefault(_topic, _payload string) {
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsService) ModifyProperties(_payload string) {
-	if _payload != "" {
-		// 儲存新的設定檔
-		os.WriteFile(_this.PropertyFileName, []byte(_payload), 0644)
-		Tools.Log.Print(Tools.LL_Info, "Properties updated, restarting...")
-		_this.RestartService()
+	if _payload == "" {
+		return
 	}
+
+	// 先寫到 .tmp 再 rename，避免中途失敗導致 properties 損毀後沒有可用設定
+	_tmp := _this.PropertyFileName + ".tmp"
+	if _err := os.WriteFile(_tmp, []byte(_payload), 0644); _err != nil {
+		Tools.Log.Print(Tools.LL_Error, "Properties write fail: %s", _err.Error())
+		return
+	}
+	if _err := os.Rename(_tmp, _this.PropertyFileName); _err != nil {
+		Tools.Log.Print(Tools.LL_Error, "Properties rename fail: %s", _err.Error())
+		os.Remove(_tmp)
+		return
+	}
+
+	Tools.Log.Print(Tools.LL_Info, "Properties updated, restarting...")
+	_this.RestartService()
 }
 
 //-------------------------------------------------------------------------------------
@@ -654,7 +738,7 @@ func (_this *MarsService) getWebHook() string {
 	_hook = _this.Property.OptString("web_hook", _hook)
 
 	if _hook != "" {
-		return strings.Replace(strings.Replace(_this.webHook, "127.0.0.0", _ip, 1), "localhost", _ip, 1)
+		return strings.Replace(strings.Replace(_hook, "127.0.0.1", _ip, 1), "localhost", _ip, 1)
 	}
 
 	return "http://" + _ip + fmt.Sprintf("%v", Tools.If(_this.defaultHttpPort == 80, "", fmt.Sprintf(":%v", _this.defaultHttpPort)))
@@ -671,6 +755,8 @@ func (_this *MarsService) GetProperty() *MarsJSON.JSONObject {
 
 // ------------------------------------------------------------------------------------
 func (_this *MarsService) MergePropertyFrom(_ext *MarsJSON.JSONObject) {
+	_this.propertyMu.Lock()
+	defer _this.propertyMu.Unlock()
 	if _this.Property != nil {
 		_this.Property.MergeFrom(_ext)
 	}
@@ -701,9 +787,14 @@ func (_this *MarsService) ResetAutoGC() {
 	if _gcInterval > 0 {
 		_this.defaultTimer = time.NewTicker(time.Duration(_gcInterval) * time.Second)
 		go func() {
-			for range _this.defaultTimer.C {
-				runtime.GC()
-				Tools.Log.Print(Tools.LL_Debug, "System GC executed")
+			for {
+				select {
+				case <-_this.defaultTimer.C:
+					runtime.GC()
+					Tools.Log.Print(Tools.LL_Debug, "System GC executed")
+				case <-_this.stopChan:
+					return
+				}
 			}
 		}()
 	}
@@ -725,7 +816,18 @@ func (_this *MarsService) StopService() bool {
 		_this.doRegistry(false)
 	}
 
-	// 3. 關閉網路連線資源
+	// 3. 廣播停止訊號，讓 heartbeat / AutoGC / ResetMQTTClient 等背景 goroutine 退出
+	_this.stopOnce.Do(func() {
+		close(_this.stopChan)
+	})
+	if _this.syncTimer != nil {
+		_this.syncTimer.Stop()
+	}
+	if _this.defaultTimer != nil {
+		_this.defaultTimer.Stop()
+	}
+
+	// 4. 關閉網路連線資源
 	_this.CloseNetService()
 
 	Tools.Log.Print(Tools.LL_Info, "Service Stopped")
@@ -734,6 +836,10 @@ func (_this *MarsService) StopService() bool {
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsService) CloseNetService() {
+	// 先收 HTTP listener，避免重啟時新子程序撞到舊 process 仍在 bind 的 port
+	if _this.HttpService != nil {
+		_this.HttpService.Close()
+	}
 	if _this.MQTTClient != nil {
 		_this.MQTTClient.Disconnect(250)
 	}
@@ -781,43 +887,52 @@ func (_this *MarsService) RestartService() {
 // ResetAutoRestart 初始化自動定時重啟任務
 func (_this *MarsService) ResetAutoRestart() {
 
-	// 如果沒有設定重啟時間，則直接返回
-	if _this.autoRestartTime.Length() <= 0 {
+	// 如果沒有有效的重啟時間，則直接返回
+	if len(_this.autoRestartMinutes) == 0 {
 		return
 	}
 
-	Tools.Log.Print(Tools.LL_Info, "Auto restart at : %v", _this.autoRestartTime.ToString())
+	Tools.Log.Print(Tools.LL_Info, "Auto restart at : %v", _this.autoRestartMinutes)
 
 	// 開啟一個 Goroutine 定時檢查時間
 	go func() {
+		// 任何 panic 都不能讓監控悄悄結束，否則自動重啟會永久失效
+		defer func() {
+			if _r := recover(); _r != nil {
+				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("Auto-restart monitor panic: %v", _r))
+			}
+		}()
+
 		_ticker := time.NewTicker(1 * time.Second)
 		defer _ticker.Stop()
+
+		// 以分鐘為比對精度，避免 ticker 因 GC/排程延遲跳過該秒整天 miss
+		// 同分鐘已觸發過則跳過，防止 RestartService 失敗時每秒重複觸發
+		_lastFireMinute := ""
 
 		for {
 			select {
 			case <-_ticker.C:
 				_uptime := time.Now().UnixMilli() - _this.SystemStartTime
-
-				// 若運作未滿 60 秒 (60,000 ms)，跳過此次檢查，避免重複重啟循環
 				if _uptime < 60000 {
 					continue
 				}
 
-				// 獲取當前時間字串 (格式如 "14:30:00")
-				_currentTime := time.Now().Format("15:04:05")
+				_currentMinute := time.Now().In(_this.restartLocation).Format("15:04")
+				if _currentMinute == _lastFireMinute {
+					continue
+				}
 
-				// 遍歷 JSONArray 檢查是否有匹配的時間點
-				for _i := 0; _i < _this.autoRestartTime.Length(); _i++ {
-					_targetTime := _this.autoRestartTime.OptString(_i, "")
-
-					if _currentTime == _targetTime {
-						Tools.Log.Print(Tools.LL_Warning, "Restart time reached: "+_targetTime)
+				for _, _target := range _this.autoRestartMinutes {
+					if _currentMinute == _target {
+						Tools.Log.Print(Tools.LL_Warning, "Restart time reached: "+_target)
+						_lastFireMinute = _currentMinute
 						_this.RestartService()
-						return // 觸發重啟後結束此監控
+						// 成功時程序會 os.Exit(0)；失敗時繼續監控等下個排程
+						break
 					}
 				}
 			case <-_this.stopChan:
-				// 接收到停止訊號則結束監控
 				return
 			}
 		}

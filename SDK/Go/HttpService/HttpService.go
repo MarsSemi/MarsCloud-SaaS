@@ -120,21 +120,29 @@ func (_this *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 		return
 	}
 
-	//Tools.Log.Print(Tools.LL_Info, "Call Root API : "+_uriOrg)
-
-	_uri := strings.Split(_uriOrg, "?")[0]
-	_fn := _this._RootPath + _uri
-	_cacheControl := Tools.If(_this._EnableCache, _this._DefaultCacheControl, "no-cache")
-
-	if len(_fn) > 0 {
-
-		_w.Header().Add("Cache-Control", _cacheControl.(string))
-
-		http.ServeFile(_w, _r, _fn)
+	// _RootPath 沒設定就直接 404，避免空字串拼接 _uri 後從檔案系統根目錄送出任意檔案
+	if strings.TrimSpace(_this._RootPath) == "" {
+		http.Error(_w, "Not Found", http.StatusNotFound)
 		return
 	}
 
-	http.Error(_w, "Not Found", http.StatusNotFound)
+	_uri := strings.Split(_uriOrg, "?")[0]
+
+	// 用 filepath.Join + Clean 標準化路徑後驗證仍位於 _RootPath 之下，防止符號連結 / 編碼變體繞過 ".."
+	_absRoot, _err := filepath.Abs(_this._RootPath)
+	if _err != nil {
+		http.Error(_w, "Not Found", http.StatusNotFound)
+		return
+	}
+	_absFile, _err := filepath.Abs(filepath.Join(_absRoot, filepath.FromSlash(_uri)))
+	if _err != nil || (_absFile != _absRoot && !strings.HasPrefix(_absFile, _absRoot+string(filepath.Separator))) {
+		http.Error(_w, "Not Acceptable", http.StatusNotAcceptable)
+		return
+	}
+
+	_cacheControl := Tools.If(_this._EnableCache, _this._DefaultCacheControl, "no-cache")
+	_w.Header().Add("Cache-Control", _cacheControl.(string))
+	http.ServeFile(_w, _r, _absFile)
 }
 
 // -------------------------------------------------------------------------------------

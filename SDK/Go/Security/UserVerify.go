@@ -2,6 +2,7 @@ package Security
 
 // -------------------------------------------------------------------------------------
 import (
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,13 @@ import (
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/MarsJSON"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Go/Tools"
 )
+
+// -------------------------------------------------------------------------------------
+// failureBackoff 對驗證失敗加入隨機延遲，仍保留 brute-force 阻擋效果但比固定 500ms 更節省 server thread，
+// jitter 也能擾亂時間旁通道
+func failureBackoff() {
+	time.Sleep(time.Duration(80+rand.Intn(120)) * time.Millisecond)
+}
 
 // -------------------------------------------------------------------------------------
 //
@@ -94,7 +102,7 @@ func DecryptToken(_auth_string string, _ignore_timetolive bool) *MarsJSON.JSONOb
 		}
 
 		if !_ignore_timetolive {
-			time.Sleep(500 * time.Millisecond)
+			failureBackoff()
 		}
 		return nil
 	}
@@ -107,7 +115,7 @@ func DecryptToken(_auth_string string, _ignore_timetolive bool) *MarsJSON.JSONOb
 	}
 
 	// 3. 失敗時強制延遲，防止網路暴力攻擊
-	time.Sleep(500 * time.Millisecond)
+	failureBackoff()
 
 	return nil
 }
@@ -121,6 +129,10 @@ func extractRawToken(_authString string) string {
 
 	if strings.Contains(_authString, " ") {
 		_parts := strings.SplitN(_authString, " ", 2)
+		// 只認 Bearer scheme，避免把 "Basic xxx" 等其他驗證 header 當成 JWT 解析
+		if !strings.EqualFold(strings.TrimSpace(_parts[0]), "Bearer") {
+			return ""
+		}
 		return strings.TrimSpace(_parts[1])
 	}
 

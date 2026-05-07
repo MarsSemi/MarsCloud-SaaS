@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -34,6 +35,11 @@ const (
 	DefaultCharset = "UTF-8"
 	DefaultTimeout = 15 * time.Second
 )
+
+// -------------------------------------------------------------------------------------
+// DefaultInsecureTLS 控制 HttpPost / MQTT TLS 是否略過憑證驗證，預設保留舊版行為（true）
+// 由 MarsService 在初始化時依 properties 中的 tls_skip_verify 決定，可設成 false 強制驗證
+var DefaultInsecureTLS = true
 
 //-------------------------------------------------------------------------------------
 // Stopwatch 區段
@@ -259,7 +265,7 @@ func HttpPostWithHeaders(_url string, _headers map[string]string, _contentType s
 
 // -------------------------------------------------------------------------------------
 func HttpPost(_url string, _authToken string, _contentType string, _content string, _timeoutMs int) string {
-	return string(HttpPost_BytesData(_url, _authToken, true, _contentType, _content, _timeoutMs))
+	return string(HttpPost_BytesData(_url, _authToken, DefaultInsecureTLS, _contentType, _content, _timeoutMs))
 }
 
 // -------------------------------------------------------------------------------------
@@ -570,6 +576,17 @@ func ShellCMDSync(_cmds ...string) string {
 }
 
 // -------------------------------------------------------------------------------------
+// ShellCMDArgsSync 直接 fork/exec，不經過 /bin/sh 或 cmd /c，避免 user input 注入命令
+// 當參數可能含使用者控制資料時，請優先使用此版本而非 ShellCMDSync
+func ShellCMDArgsSync(_name string, _args ...string) string {
+	_out, _err := exec.Command(_name, _args...).CombinedOutput()
+	if _err != nil {
+		return ""
+	}
+	return string(_out)
+}
+
+// -------------------------------------------------------------------------------------
 type IShellCMDCallback func(proc *os.Process, data string)
 
 // -------------------------------------------------------------------------------------
@@ -624,6 +641,88 @@ func KillProcess(pid string) bool {
 	// 在 Unix 下使用 SIGKILL (-9)，Windows 下直接 Kill
 	err = proc.Kill()
 	return err == nil
+}
+
+// -------------------------------------------------------------------------------------
+// KillProcessByName 找出與 _name 同名（不含路徑）但 PID 不同於當前進程的所有實例並關閉，回傳實際關閉的數量
+// Windows: 比對 IMAGENAME（含 .exe）；Unix: 解析 ps argv[0] 的 basename，避開 Linux comm 被截斷到 15 字元的限制
+func KillProcessByName(_name string) int {
+	if _name == "" {
+		return 0
+	}
+
+	_selfPID := os.Getpid()
+	_pids := []string{}
+
+	if IsMSWindow() {
+		_out := ShellCMDSync(fmt.Sprintf(`tasklist /FI "IMAGENAME eq %s" /NH /FO CSV`, _name))
+		for _, _line := range strings.Split(_out, "\n") {
+			_line = strings.TrimSpace(_line)
+			if _line == "" || strings.HasPrefix(strings.ToUpper(_line), "INFO:") {
+				continue
+			}
+			_fields := strings.Split(_line, ",")
+			if len(_fields) < 2 {
+				continue
+			}
+			_pids = append(_pids, strings.Trim(_fields[1], `"`))
+		}
+	} else {
+		_out := ShellCMDSync("ps -A -o pid=,args=")
+		_marker := "/" + _name
+		for _, _line := range strings.Split(_out, "\n") {
+			_line = strings.TrimSpace(_line)
+			if _line == "" {
+				continue
+			}
+			_parts := strings.SplitN(_line, " ", 2)
+			if len(_parts) < 2 {
+				continue
+			}
+			_pid := _parts[0]
+			_argsStr := _parts[1]
+
+			// 主路徑：把 args 第一個 token 視為 argv[0]，比對 basename
+			_argv0 := _argsStr
+			if _idx := strings.IndexAny(_argv0, " \t"); _idx >= 0 {
+				_argv0 = _argv0[:_idx]
+			}
+			if filepath.Base(_argv0) == _name {
+				_pids = append(_pids, _pid)
+				continue
+			}
+
+			// fallback：argv[0] 路徑含空白時 SplitN 會切錯，改在整段 args 找 "/<name>"（後接空白 / tab / 結尾）
+			if strings.HasSuffix(_argsStr, _marker) ||
+				strings.Contains(_argsStr, _marker+" ") ||
+				strings.Contains(_argsStr, _marker+"\t") {
+				_pids = append(_pids, _pid)
+			}
+		}
+	}
+
+	_killed := 0
+	for _, _pid := range _pids {
+		_p, _err := strconv.Atoi(_pid)
+		if _err != nil || _p <= 0 || _p == _selfPID {
+			continue
+		}
+		Log.Print(LL_Info, fmt.Sprintf("Killing duplicate process %s (PID %d)", _name, _p))
+		if KillProcess(_pid) {
+			_killed++
+		}
+	}
+	return _killed
+}
+
+// -------------------------------------------------------------------------------------
+// KillSiblingInstance 偵測並關閉與當前執行檔同名的舊實例（避免服務重複啟動）
+func KillSiblingInstance() int {
+	_self, _err := os.Executable()
+	if _err != nil {
+		return 0
+	}
+	return KillProcessByName(filepath.Base(_self))
 }
 
 // -------------------------------------------------------------------------------------
@@ -1119,6 +1218,9 @@ func GetSystemMemoryState() *mem.VirtualMemoryStat {
 func GetSystemMemoryUsage() uint32 {
 
 	_v := GetSystemMemoryState()
+	if _v == nil {
+		return 0
+	}
 
 	return uint32(_v.Used / 1024 / 1024)
 }
