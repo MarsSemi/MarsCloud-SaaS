@@ -3,12 +3,12 @@ package HttpService
 // -------------------------------------------------------------------------------------
 import (
 	"context"
-	"encoding/pem"
 	"crypto/tls"
+	"encoding/pem"
 	"fmt"
-	"os"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -141,6 +141,12 @@ func (_this *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 	}
 
 	_cacheControl := Tools.If(_this._EnableCache, _this._DefaultCacheControl, "no-cache")
+
+	// 視 client 的 Accept-Encoding 啟用 gzip / br；ServeFile 內部會 sniff Content-Type，
+	// 圖片 / 影片等已壓縮格式由 wrapper 自動 skip，Range request 也已先在 MaybeCompressWriter 內 bypass
+	_w, _release := MaybeCompressWriter(_w, _r)
+	defer _release()
+
 	_w.Header().Add("Cache-Control", _cacheControl.(string))
 	http.ServeFile(_w, _r, _absFile)
 }

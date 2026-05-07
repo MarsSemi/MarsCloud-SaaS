@@ -58,6 +58,10 @@ func (_h *HttpAPI) servHTTP(_w http.ResponseWriter, _r *http.Request) {
 		return
 	}
 
+	// 視 client 的 Accept-Encoding 啟用 gzip / br 壓縮，release 必須 defer 以 flush 殘餘資料
+	_w, _release := MaybeCompressWriter(_w, _r)
+	defer _release()
+
 	var _jwt *MarsJSON.JSONObject
 
 	_jwt = nil

@@ -4,11 +4,13 @@ go 1.25.6
 
 require (
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
+	github.com/andybalholm/brotli v1.2.1
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/mochi-mqtt/server/v2 v2.7.9
 	github.com/shirou/gopsutil/v3 v3.24.5
+	golang.org/x/crypto v0.47.0
 )
 
 require (
@@ -31,7 +33,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
