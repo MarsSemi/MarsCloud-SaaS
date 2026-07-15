@@ -48,9 +48,9 @@ type IMarsService interface {
 3. 檢查並清除佔用 `http_port` 的進程
 4. 初始化 `HttpService`
 5. 視設定決定是否啟本地 MQTT broker
-6. 若 `mars_cloud_url/account/password` 完整，登入 MarsCloud
-7. 建立 MQTT client、AsyncTaskProcessor、執行 service registry
-8. 啟動 HTTP/HTTPS
+6. 若 `mars_cloud_url/account/password` 完整，在背景連線 MarsCloud；連線失敗時持續重試，不阻塞 HTTP/HTTPS 啟動
+7. 啟動 HTTP/HTTPS
+8. MarsCloud 連線成功後，在背景建立 MQTT client、AsyncTaskProcessor 並執行 service registry
 
 ## 一般範例
 
@@ -83,6 +83,9 @@ func main() {
 - `mars_cloud_password`
 - `mars_cloud_proj`
 - `mqtt_server_enable`
+- `mqtt_allow_anonymous`
+- `mqtt_username`
+- `mqtt_password`
 - `http_port`
 - `https_port`
 - `ssl_key`
@@ -94,7 +97,12 @@ func main() {
 ## 注意事項
 
 - `mqtt_server_enable` 預設為 `false`
-- 缺少任一 MarsCloud 登入欄位時，只會當一般 server 啟動
+- 本地 MQTT broker 預設拒絕匿名連線；啟用 broker 時須設定 `mqtt_username` 與 `mqtt_password`，只有明確設定 `mqtt_allow_anonymous=true` 才允許匿名連線
+- HTTP/HTTPS Server 不需等待 MarsCloud 連線成功；MarsCloud 無法連線時，仍可提供不依賴雲端資源的 HTTP API 與靜態檔案
+- 內建 `/system` 管理 API 只有在 SDK token 驗證成功且 claims 非空時才會執行；未驗證請求回傳 `401 Unauthorized`
+- 缺少任一 MarsCloud 登入欄位時，只會當一般 server 啟動，不會建立雲端 MQTT client、AsyncTaskProcessor 或執行 service registry
+- `Start()` 會以 goroutine 非同步執行啟動流程；呼叫返回不代表 HTTP/HTTPS 已開始監聽，主程式需保持運行
+- 依賴 `MarsClient`、雲端 `MQTTClient` 或 `AsyncTaskProcessor` 的 API，應在使用前確認元件已完成初始化或雲端已連線
 - `OnMQTTMessage` 是雲端 MQTT client 的回調，本地 broker 則用 `SetLocalMQTTMessageCallback`
 - 啟動時會自動偵測並 `kill` 同執行檔名稱（不同 PID）的舊實例，不再依賴外部 PID 檔；舊版 `run_bg.sh` 寫入 `AgenticService.pid` 的步驟可省略
 - 啟動時會 log 出當前 `Restart Timezone`，遠端容器若 `/etc/localtime` 缺失而 fallback `UTC` 可立即看出

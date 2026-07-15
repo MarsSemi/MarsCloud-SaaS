@@ -85,39 +85,40 @@ func DecryptToken(_auth_string string, _ignore_timetolive bool) *MarsJSON.JSONOb
 	defer Tools.GlobalRecovery()
 
 	_token := extractRawToken(_auth_string)
-	if len(_token) > 16 {
-		_jobj := JWT.DecryptToken(_token, _ignore_timetolive)
-		if _jobj != nil {
-			return _jobj
-		}
-
-		for _, _verifier := range getCompatJWTVerifiers() {
-			if _verifier == nil {
-				continue
-			}
-			_jobj = _verifier.DecryptToken(_token, _ignore_timetolive)
-			if _jobj != nil {
-				return _jobj
-			}
-		}
-
-		if !_ignore_timetolive {
-			failureBackoff()
-		}
+	// Security 模組只處理 compact JWE。其他 opaque token 交由上層驗證器處理，
+	// 避免同一 request 先做一次無效 JWE 解密，再執行應用層 session 驗證。
+	if !isCompactJWEToken(_token) {
 		return nil
 	}
 
-	if len(_auth_string) > 16 {
-		_jobj := JWT.DecryptToken(_auth_string, _ignore_timetolive)
+	_jobj := JWT.DecryptToken(_token, _ignore_timetolive)
+	if _jobj != nil {
+		return _jobj
+	}
+
+	for _, _verifier := range getCompatJWTVerifiers() {
+		if _verifier == nil {
+			continue
+		}
+		_jobj = _verifier.DecryptToken(_token, _ignore_timetolive)
 		if _jobj != nil {
 			return _jobj
 		}
 	}
 
-	// 3. 失敗時強制延遲，防止網路暴力攻擊
-	failureBackoff()
+	if !_ignore_timetolive {
+		failureBackoff()
+	}
 
 	return nil
+}
+
+// -------------------------------------------------------------------------------------
+// isCompactJWEToken 判斷是否為 JWE Compact Serialization（五個以句點分隔的區段）。
+// alg=dir 時第二區段允許為空，因此只檢查結構，不限制每個區段都必須有內容。
+func isCompactJWEToken(_token string) bool {
+	_token = strings.TrimSpace(_token)
+	return len(_token) > 16 && strings.Count(_token, ".") == 4
 }
 
 // -------------------------------------------------------------------------------------

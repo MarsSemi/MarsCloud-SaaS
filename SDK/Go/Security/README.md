@@ -36,6 +36,7 @@ User verify：
 
 ## 相容性重點
 
+- Security 驗證器只處理由五個句點區段組成的 compact JWE；opaque session token 會直接回傳 `nil`，由應用層驗證器接手
 - RSA token 建立採用 `RSA-OAEP + A128GCM`
 - 解密時會同時嘗試：
   - `RSA-OAEP`
@@ -62,4 +63,5 @@ claims := Security.JWT.DecryptToken(token, false)
 ## 注意事項
 
 - `exp` 以秒為單位
-- `VerifyToken` 會在失敗時引入短暫 delay，避免暴力測試
+- 未載入可用金鑰、解密失敗、payload 不是有效 JSON object 或 claims 為空時，一律回傳 `nil`
+- `VerifyToken` 只會對結構有效但驗證失敗的 compact JWE 引入短暫 delay；其他 token 格式不做無效的密碼學運算

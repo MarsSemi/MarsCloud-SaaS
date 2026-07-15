@@ -262,7 +262,7 @@ func (_this *JWTProcessor) CreateToken(_method string, _root map[string]interfac
 // -------------------------------------------------------------------------------------
 // DecryptToken 解密並驗證 Token
 func (_this *JWTProcessor) DecryptToken(_tokenStr string, _ignoreExp bool) *MarsJSON.JSONObject {
-	if _tokenStr == "" {
+	if !isCompactJWEToken(_tokenStr) {
 		return nil
 	}
 
@@ -271,9 +271,11 @@ func (_this *JWTProcessor) DecryptToken(_tokenStr string, _ignoreExp bool) *Mars
 
 	var _decrypted []byte
 	var _err error
+	_attempted := false
 
 	// 嘗試使用私鑰解密 (RSA)
 	if _this._PrivateKey != nil {
+		_attempted = true
 		_decrypted, _err = jwe.Decrypt([]byte(_tokenStr), jwe.WithKey(jwa.RSA_OAEP, _this._PrivateKey))
 		if _err != nil {
 			_decrypted, _err = jwe.Decrypt([]byte(_tokenStr), jwe.WithKey(jwa.RSA_OAEP_256, _this._PrivateKey))
@@ -281,20 +283,27 @@ func (_this *JWTProcessor) DecryptToken(_tokenStr string, _ignoreExp bool) *Mars
 	}
 
 	// 若 RSA 失敗或無私鑰，嘗試 AES
-	if _err != nil && len(_this._SecretKey) > 0 {
+	if (!_attempted || _err != nil) && len(_this._SecretKey) > 0 {
+		_attempted = true
 		_decrypted, _err = jwe.Decrypt([]byte(_tokenStr), jwe.WithKey(jwa.DIRECT, _this._SecretKey))
 	}
 
-	if _err != nil {
+	if !_attempted || _err != nil || len(_decrypted) == 0 {
 		return nil
 	}
 
 	// 解析 Payload
 	var _obj map[string]interface{}
-	json.Unmarshal(_decrypted, &_obj)
+	if _err = json.Unmarshal(_decrypted, &_obj); _err != nil || len(_obj) == 0 {
+		return nil
+	}
 
 	// 驗證有效期 (exp)
-	if _exp, _ok := _obj["exp"].(float64); _ok {
+	if _expValue, _exists := _obj["exp"]; _exists {
+		_exp, _ok := _expValue.(float64)
+		if !_ok {
+			return nil
+		}
 		if !_ignoreExp && int64(_exp) < time.Now().Unix() {
 			Tools.Log.Print(Tools.LL_Debug, "JWS token is out of time")
 			return nil

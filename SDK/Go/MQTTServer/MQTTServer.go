@@ -2,13 +2,13 @@ package MQTTServer
 
 // -------------------------------------------------------------------------------------
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"sync"
-	"bytes"
 
 	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/hooks/auth"
@@ -31,6 +31,10 @@ type Config struct {
 
 	CertFile string
 	KeyFile  string
+
+	AllowAnonymous bool
+	Username       string
+	Password       string
 
 	OnMessage MessageCallback
 }
@@ -61,7 +65,7 @@ func (_this *MQTTServer) Start() error {
 		Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	})
 
-	if _err := _server.AddHook(new(auth.AllowHook), nil); _err != nil {
+	if _err := _this.addAuthHook(_server); _err != nil {
 		return _err
 	}
 
@@ -134,6 +138,32 @@ func (_this *MQTTServer) Start() error {
 }
 
 // -------------------------------------------------------------------------------------
+func (_this *MQTTServer) addAuthHook(_server *mqtt.Server) error {
+	if _this.config.AllowAnonymous {
+		return _server.AddHook(new(auth.AllowHook), nil)
+	}
+
+	_username := strings.TrimSpace(_this.config.Username)
+	if _username == "" || strings.TrimSpace(_this.config.Password) == "" {
+		return fmt.Errorf("mqtt authentication config invalid: Username and Password are required when AllowAnonymous is false")
+	}
+
+	_ledger := &auth.Ledger{
+		Users: auth.Users{
+			_username: {
+				Username: auth.RString(_username),
+				Password: auth.RString(_this.config.Password),
+				ACL: auth.Filters{
+					"#": auth.ReadWrite,
+				},
+			},
+		},
+	}
+
+	return _server.AddHook(new(auth.Hook), &auth.Options{Ledger: _ledger})
+}
+
+// -------------------------------------------------------------------------------------
 func (_this *MQTTServer) Close() error {
 	_this.lock.Lock()
 	defer _this.lock.Unlock()
@@ -167,10 +197,28 @@ func (_this *MQTTServer) loadTLSConfig() (*tls.Config, error) {
 		return nil, fmt.Errorf("load mqtt tls cert/key fail: %w", _err)
 	}
 
+	_tlsConfig := secureServerTLSConfig()
+	_tlsConfig.Certificates = []tls.Certificate{_cert}
+	return _tlsConfig, nil
+}
+
+// -------------------------------------------------------------------------------------
+func secureServerTLSConfig() *tls.Config {
 	return &tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{_cert},
-	}, nil
+		MinVersion: tls.VersionTLS12,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		},
+		CurvePreferences: []tls.CurveID{
+			tls.X25519,
+			tls.CurveP256,
+		},
+	}
 }
 
 // -------------------------------------------------------------------------------------

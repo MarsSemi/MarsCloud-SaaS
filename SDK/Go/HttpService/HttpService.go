@@ -70,15 +70,31 @@ func Create(_http_port, _https_port int, _ssl_cert, _ssl_key_file, _ssl_pwd stri
 
 	if _this._HttpsPort > 0 && _this._SSLCert != "" {
 		_this._HttpsServer = &http.Server{
-			Addr:    fmt.Sprintf(":%d", _this._HttpsPort),
-			Handler: _this._Mux,
-			TLSConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-			},
+			Addr:      fmt.Sprintf(":%d", _this._HttpsPort),
+			Handler:   _this._Mux,
+			TLSConfig: secureServerTLSConfig(),
 		}
 	}
 
 	return _this
+}
+
+func secureServerTLSConfig() *tls.Config {
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		},
+		CurvePreferences: []tls.CurveID{
+			tls.X25519,
+			tls.CurveP256,
+		},
+	}
 }
 
 //-------------------------------------------------------------------------------------

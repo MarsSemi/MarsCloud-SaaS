@@ -23,6 +23,9 @@
 - `WSSPort`
 - `CertFile`
 - `KeyFile`
+- `AllowAnonymous`
+- `Username`
+- `Password`
 - `OnMessage`
 
 ## 常用函式
@@ -39,6 +42,8 @@ server := MQTTServer.Create(MQTTServer.Config{
     WSPort:  1884,
     SSLPort: 8883,
     WSSPort: 8884,
+    Username: "service-user",
+    Password: "replace-with-a-strong-password",
     OnMessage: func(topic string, payload string) {
         fmt.Println(topic, payload)
     },
@@ -60,4 +65,7 @@ defer server.Close()
 ## 注意事項
 
 - 只有在 `mqtt_server_enable=true` 時，`MarsService` 才會啟動它
+- `AllowAnonymous` 預設為 `false`；此時必須同時設定非空白的 `Username` 與 `Password`，否則 `Start()` 會回傳錯誤且不啟動 broker
+- 驗證成功的使用者可讀寫所有 topic
+- 只有明確設定 `AllowAnonymous=true` 才允許匿名連線；此模式會忽略 `Username` 與 `Password`
 - 若未設定 `CertFile` / `KeyFile`，則 `ssl/wss` 會被略過

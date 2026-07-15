@@ -3,8 +3,8 @@ package MarsService
 //-------------------------------------------------------------------------------------
 import (
 	"fmt"
-	"net/url"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -111,9 +111,9 @@ type MarsService struct {
 	ssl_Key_File     string
 	ssl_Key_Password string
 
-	account  string
-	password string
-	webHook  string
+	account                  string
+	password                 string
+	webHook                  string
 	localMQTTMessageCallback MarsMQTTServer.MessageCallback
 
 	SystemStartTime      int64
@@ -320,14 +320,17 @@ func (_this *MarsService) startLocalMQTTServer() {
 	}
 
 	_config := MarsMQTTServer.Config{
-		Host:      _this.Property.OptString("mqtt_bind", ""),
-		TCPPort:   _this.Property.OptInt("mqtt_tcp_port", 1883),
-		WSPort:    _this.Property.OptInt("mqtt_ws_port", 1884),
-		SSLPort:   _this.Property.OptInt("mqtt_ssl_port", 8883),
-		WSSPort:   _this.Property.OptInt("mqtt_wss_port", 8884),
-		CertFile:  _this.Property.OptString("mqtt_tls_cert", ""),
-		KeyFile:   _this.Property.OptString("mqtt_tls_key", ""),
-		OnMessage: _this.localMQTTMessageCallback,
+		Host:           _this.Property.OptString("mqtt_bind", ""),
+		TCPPort:        _this.Property.OptInt("mqtt_tcp_port", 1883),
+		WSPort:         _this.Property.OptInt("mqtt_ws_port", 1884),
+		SSLPort:        _this.Property.OptInt("mqtt_ssl_port", 8883),
+		WSSPort:        _this.Property.OptInt("mqtt_wss_port", 8884),
+		CertFile:       _this.Property.OptString("mqtt_tls_cert", ""),
+		KeyFile:        _this.Property.OptString("mqtt_tls_key", ""),
+		AllowAnonymous: _this.Property.OptBoolean("mqtt_allow_anonymous", false),
+		Username:       _this.Property.OptString("mqtt_username", ""),
+		Password:       _this.Property.OptString("mqtt_password", ""),
+		OnMessage:      _this.localMQTTMessageCallback,
 	}
 
 	_this.LocalMQTTServer = MarsMQTTServer.Create(_config)

@@ -57,6 +57,16 @@ func (_this *HttpAPI_System) UpdateSetting(_body string) string {
 
 // -------------------------------------------------------------------------------------
 func (_this *HttpAPI_System) Process(_w http.ResponseWriter, _r *http.Request, _jwt *MarsJSON.JSONObject, _path []string, _params *MarsJSON.JSONObject, _body string) []byte {
+	// Token 已由 HttpAPI 外層驗證；此處只使用驗證結果，不重複執行解密。
+	if _jwt == nil || _jwt.Length() == 0 {
+		SendResponse(
+			_w,
+			http.StatusUnauthorized,
+			"application/json; charset=UTF-8",
+			[]byte(`{"success":false,"error":"unauthorized"}`),
+		)
+		return []byte(ResponseHandledMarker)
+	}
 
 	_resp := ""
 	_cmd := _path[len(_path)-1]
