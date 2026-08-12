@@ -1,0 +1,275 @@
+package Security
+
+// -------------------------------------------------------------------------------------
+import (
+	"math/rand"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/MarsSemi/MarsCloud-SaaS/SDK/MarsJSON"
+	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Tools"
+)
+
+// -------------------------------------------------------------------------------------
+// failureBackoff 對驗證失敗加入隨機延遲，仍保留 brute-force 阻擋效果但比固定 500ms 更節省 server thread，
+// jitter 也能擾亂時間旁通道
+func failureBackoff() {
+	time.Sleep(time.Duration(80+rand.Intn(120)) * time.Millisecond)
+}
+
+// -------------------------------------------------------------------------------------
+//
+// -------------------------------------------------------------------------------------
+type UserGroup string
+
+// -------------------------------------------------------------------------------------
+const (
+	UT_Administrator UserGroup = "administrator"
+	UT_User          UserGroup = "user"
+	UT_Guest         UserGroup = "guest"
+)
+
+var (
+	compatJWTVerifiers     []*JWTProcessor
+	compatJWTVerifiersOnce sync.Once
+)
+
+// ------------------------------------------------------------------------------------
+// VerifyToken 驗證 Token 合法性與權限群組
+func VerifyToken(_auth_string string, _group UserGroup, _ipadd_from string) *MarsJSON.JSONObject {
+	// 使用 defer 捕捉異常並列印訊息
+	defer Tools.GlobalRecovery()
+
+	// 1. 執行解密
+	_jobj := DecryptToken(_auth_string, false)
+
+	if _jobj != nil {
+
+		// 2. 驗證群組是否匹配 (如果 _group 為空則跳過驗證)
+		_tokenGroup := strings.ToLower(_jobj.OptString("group", ""))
+
+		if _group == "" || string(_group) == _tokenGroup {
+
+			// 3. 記錄來源 IP 並回傳
+			_connectFrom := ""
+			if _ipadd_from != "" {
+				_connectFrom = _ipadd_from
+			}
+
+			_jobj.Put("connect_from", _connectFrom)
+
+			return _jobj
+		}
+
+		Tools.Log.Print(Tools.LL_Debug, "User Group Verify Error : %s != %s", _tokenGroup, _group)
+
+	} else {
+
+		// 4. 失敗時記錄 Debug Log
+		if _ipadd_from != "" {
+			Tools.Log.Print(Tools.LL_Debug, "Verify token fail from "+_ipadd_from)
+		} else {
+			Tools.Log.Print(Tools.LL_Debug, "Verify token fail : "+_auth_string)
+		}
+	}
+
+	return nil
+}
+
+// -------------------------------------------------------------------------------------
+// DecryptToken 執行 JWT 解密並處理逾時邏輯
+func DecryptToken(_auth_string string, _ignore_timetolive bool) *MarsJSON.JSONObject {
+	defer Tools.GlobalRecovery()
+
+	_token := extractRawToken(_auth_string)
+	_isExtended := JWT.IsExtendedToken(_token)
+	// Security 模組處理 compact JWE 與具 mars_ext 標記的 Extended JWT。
+	// 其他 opaque token 交由上層驗證器處理。
+	if !_isExtended && !isCompactJWEToken(_token) {
+		return nil
+	}
+
+	_jobj := decryptTokenWithProcessor(JWT, _token, _ignore_timetolive, _isExtended)
+	if _jobj != nil {
+		return _jobj
+	}
+
+	for _, _verifier := range getCompatJWTVerifiers() {
+		if _verifier == nil {
+			continue
+		}
+		_jobj = decryptTokenWithProcessor(_verifier, _token, _ignore_timetolive, _isExtended)
+		if _jobj != nil {
+			return _jobj
+		}
+	}
+
+	if !_ignore_timetolive {
+		failureBackoff()
+	}
+
+	return nil
+}
+
+// -------------------------------------------------------------------------------------
+func decryptTokenWithProcessor(_processor *JWTProcessor, _token string, _ignoreExp bool, _isExtended bool) *MarsJSON.JSONObject {
+	if _processor == nil {
+		return nil
+	}
+	if !_isExtended {
+		return _processor.DecryptToken(_token, _ignoreExp)
+	}
+	_verified, _err := _processor.VerifyExtendedToken(_token, _ignoreExp)
+	if _err != nil || _verified == nil || len(_verified.Claims) == 0 {
+		return nil
+	}
+	_result := MarsJSON.NewJSONObject(_verified.Claims)
+	if len(_verified.Extensions) > 0 {
+		_result.Put(extendedJWTClaimsKey, _verified.Extensions)
+	}
+	return _result
+}
+
+// -------------------------------------------------------------------------------------
+// isCompactJWEToken 判斷是否為 JWE Compact Serialization（五個以句點分隔的區段）。
+// alg=dir 時第二區段允許為空，因此只檢查結構，不限制每個區段都必須有內容。
+func isCompactJWEToken(_token string) bool {
+	_token = strings.TrimSpace(_token)
+	return len(_token) > 16 && strings.Count(_token, ".") == 4
+}
+
+// -------------------------------------------------------------------------------------
+func extractRawToken(_authString string) string {
+	_authString = strings.TrimSpace(_authString)
+	if _authString == "" {
+		return ""
+	}
+
+	if strings.Contains(_authString, " ") {
+		_parts := strings.SplitN(_authString, " ", 2)
+		// 只認 Bearer scheme，避免把 "Basic xxx" 等其他驗證 header 當成 JWT 解析
+		if !strings.EqualFold(strings.TrimSpace(_parts[0]), "Bearer") {
+			return ""
+		}
+		return strings.TrimSpace(_parts[1])
+	}
+
+	return _authString
+}
+
+// -------------------------------------------------------------------------------------
+func getCompatJWTVerifiers() []*JWTProcessor {
+	compatJWTVerifiersOnce.Do(initCompatJWTVerifiers)
+	return compatJWTVerifiers
+}
+
+// -------------------------------------------------------------------------------------
+func initCompatJWTVerifiers() {
+	compatJWTVerifiers = make([]*JWTProcessor, 0)
+
+	_prop := loadCompatProperty()
+	_candidates := []struct {
+		aes string
+		pub string
+		pri string
+	}{
+		{
+			aes: strings.TrimSpace(_prop.OptString("legacy_aes", "")),
+			pub: strings.TrimSpace(_prop.OptString("legacy_rsa_pub", "")),
+			pri: strings.TrimSpace(_prop.OptString("legacy_rsa_pri", "")),
+		},
+		{
+			aes: strings.TrimSpace(_prop.OptString("compat_aes", "")),
+			pub: strings.TrimSpace(_prop.OptString("compat_rsa_pub", "")),
+			pri: strings.TrimSpace(_prop.OptString("compat_rsa_pri", "")),
+		},
+		{
+			aes: strings.TrimSpace(_prop.OptString("default_aes", "")),
+			pub: strings.TrimSpace(_prop.OptString("default_rsa_pub", "")),
+			pri: strings.TrimSpace(_prop.OptString("default_rsa_pri", "")),
+		},
+		{
+			aes: "./authhub.aes.key",
+			pub: "./authhub.rsa.pub",
+			pri: "./authhub.rsa.pri",
+		},
+		{
+			aes: "./cert/aes.key",
+			pub: "./cert/rsa.pub",
+			pri: "./cert/rsa.pri",
+		},
+		{
+			aes: "../Cert/aes.key",
+			pub: "../Cert/rsa.pub",
+			pri: "../Cert/rsa.pri",
+		},
+	}
+
+	_seen := map[string]bool{}
+	for _, _candidate := range _candidates {
+		_aes := normalizeCompatPath(_candidate.aes)
+		_pub := normalizeCompatPath(_candidate.pub)
+		_pri := normalizeCompatPath(_candidate.pri)
+		if _aes == "" || _pub == "" || _pri == "" {
+			continue
+		}
+		if !compatFileExists(_aes) || !compatFileExists(_pub) || !compatFileExists(_pri) {
+			continue
+		}
+
+		_key := _aes + "|" + _pub + "|" + _pri
+		if _seen[_key] {
+			continue
+		}
+		_seen[_key] = true
+
+		_jwt := &JWTProcessor{}
+		if !_jwt.LoadRSAKeyFromFile(_pub, _pri) {
+			continue
+		}
+		if !_jwt.LoadAESKeyFromFile(_aes) {
+			continue
+		}
+
+		compatJWTVerifiers = append(compatJWTVerifiers, _jwt)
+	}
+}
+
+// -------------------------------------------------------------------------------------
+func loadCompatProperty() *MarsJSON.JSONObject {
+	_candidates := []string{
+		"./agent.properties",
+		"../agent.properties",
+	}
+
+	for _, _path := range _candidates {
+		if !compatFileExists(_path) {
+			continue
+		}
+
+		return MarsJSON.NewJSONObject(Tools.File2String(_path))
+	}
+
+	return MarsJSON.NewJSONObject("{}")
+}
+
+// -------------------------------------------------------------------------------------
+func normalizeCompatPath(_path string) string {
+	_path = strings.TrimSpace(_path)
+	if _path == "" {
+		return ""
+	}
+
+	return filepath.Clean(_path)
+}
+
+// -------------------------------------------------------------------------------------
+func compatFileExists(_path string) bool {
+	_info, _err := os.Stat(_path)
+	return _err == nil && !_info.IsDir()
+}
+
+// -------------------------------------------------------------------------------------
