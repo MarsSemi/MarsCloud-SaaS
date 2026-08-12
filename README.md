@@ -14,8 +14,6 @@ MarsCloud SaaS 是 Mars Semiconductor Corp. 所提供的原生雲端與微服務
 
 ## Go SDK
 
-Go SDK 直接位於 `SDK/`，不再使用額外的語言層級目錄。此 Repository 不處理其他程式語言的 SDK。
-
 ```bash
 go get github.com/MarsSemi/MarsCloud-SaaS/SDK@v0.1.20
 ```
