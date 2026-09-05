@@ -15,7 +15,7 @@ MarsCloud SaaS 是 Mars Semiconductor Corp. 所提供的原生雲端與微服務
 ## Go SDK
 
 ```bash
-go get github.com/MarsSemi/MarsCloud-SaaS/SDK@v0.1.20
+go get github.com/MarsSemi/MarsCloud-SaaS/SDK@v0.1.21
 ```
 
 ```go
