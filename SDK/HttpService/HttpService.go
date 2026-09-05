@@ -213,7 +213,17 @@ func (_this *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback)
 		_api := CreateHttpAPI(_callback)
 
 		_this._Handlers[_uri] = _api.callBack
-		_this._Mux.HandleFunc(_uri, _api.servHTTP)
+		// ServeMux 無法動態移除路由，使用 dispatcher 檢查目前註冊表。
+		_this._Mux.HandleFunc(_uri, func(w http.ResponseWriter, r *http.Request) {
+			_this._MuxLock.RLock()
+			_, exists := _this._Handlers[_uri]
+			_this._MuxLock.RUnlock()
+			if !exists {
+				http.NotFound(w, r)
+				return
+			}
+			_api.servHTTP(w, r)
+		})
 
 		//Tools.ConsolePrint("AddRestfulAPI : " + _uri)
 	}
@@ -225,9 +235,10 @@ func (_this *HttpService) RemoveRestfulAPI(_uri string) {
 
 	_this._MuxLock.Lock()
 	defer _this._MuxLock.Unlock()
+	if strings.HasSuffix(_uri, "/") == false {
+		_uri += "/"
+	}
 	delete(_this._Handlers, _uri)
-
-	http.HandleFunc(_uri, nil)
 }
 
 // -------------------------------------------------------------------------------------

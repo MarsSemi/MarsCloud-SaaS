@@ -2,6 +2,7 @@ package MarsService
 
 //-------------------------------------------------------------------------------------
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -70,15 +71,15 @@ func (_this *serviceCallback) OnMessageArrived(_topic string, _msg *MQTTClient.M
 
 	_payload := string(_msg.GetPayload())
 
-	if _this.service.AsyncTaskProcessor != nil {
-
-		if _topic == _this.service.MQTT_AsyncTask_Topic {
+	if _topic == _this.service.MQTT_AsyncTask_Topic {
+		if _this.service.AsyncTaskProcessor != nil {
 			_this.service.AsyncTaskProcessor.OnMQTTMessage(_topic, _payload)
-		} else {
-
-			_this.service.onMQTTDefault(_topic, _payload)
-			_this.service.impl.OnMQTTMessage(_topic, _payload)
 		}
+		return
+	}
+	_this.service.onMQTTDefault(_topic, _payload)
+	if _this.service.impl != nil {
+		_this.service.impl.OnMQTTMessage(_topic, _payload)
 	}
 }
 
@@ -440,6 +441,9 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 	Tools.Log.Print(Tools.LL_Debug, "Service Registered : %s", _version)
 
 	// 定時同步 (Heartbeat)
+	if _this.syncTimer != nil {
+		_this.syncTimer.Stop()
+	}
 	_this.syncTimer = time.NewTicker(20 * time.Second)
 	go func() {
 		for {
@@ -582,7 +586,9 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 		Tools.Log.Print(Tools.LL_Info, "MQTT connection status : %v", _this.MQTTClient.IsConnected())
 
 		if _this.MQTTClient.IsConnected() {
-			_this.impl.OnMQTTConnected()
+			if _this.impl != nil {
+				_this.impl.OnMQTTConnected()
+			}
 
 			// 訂閱必要主題
 			_this.MQTTClient.Subscribe(_this.MQTT_Default_Topic, 0)
@@ -634,6 +640,11 @@ func (_this *MarsService) onMQTTDefault(_topic, _payload string) {
 // -------------------------------------------------------------------------------------
 func (_this *MarsService) ModifyProperties(_payload string) {
 	if _payload == "" {
+		return
+	}
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(_payload), &obj); err != nil || obj == nil {
+		Tools.Log.Print(Tools.LL_Error, "Invalid properties JSON, update skipped")
 		return
 	}
 

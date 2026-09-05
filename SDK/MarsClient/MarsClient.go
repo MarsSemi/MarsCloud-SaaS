@@ -160,12 +160,17 @@ func (_this *MarsClient) ReLogin() bool {
 		}
 		_token = Tools.HttpPost(_urlStr, "", "", _this.SecretKey, 0)
 	} else if len(_this.AuthToken) > 0 {
-		// 遵循 Java 原始邏輯：AuthToken 存在時嘗試使用 SecretKey 換取新 Auth
+		// 僅有既存 Token 時不可使用空 SecretKey 覆蓋有效憑證。
+		if len(_this.SecretKey) == 0 {
+			return true
+		}
 		_token = Tools.HttpPost(_this.GetServerURL()+"/auth/get_auth_by_key?", "", "", _this.SecretKey, 0)
 	}
 
 	_this.mu.Lock()
-	_this.AuthToken = _token
+	if len(_token) > 10 {
+		_this.AuthToken = _token
+	}
 	_this.mu.Unlock()
 
 	if len(_token) > 10 {
