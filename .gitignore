@@ -1,0 +1,10 @@
+# Local deployment data and credentials
+agent.properties
+cert/
+*.key
+*.p12
+*.pfx
+*.pem
+*.bak
+*.bak.*
+*.DS_Store

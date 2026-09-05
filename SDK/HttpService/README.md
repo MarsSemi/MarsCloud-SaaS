@@ -25,6 +25,7 @@
 - `(_this *HttpService) SetDefaultHTML(_default_html string)`
 - `(_this *HttpService) SetDefaultCacheControl(_control string)`
 - `(_this *HttpService) Run()`
+- `(_this *HttpService) RunWithError()`（完成 listener/TLS 初始化後才啟動）
 - `(_this *HttpService) Close() bool`
 - `SendResponse(_w http.ResponseWriter, _no int, _contentType string, _content []byte)`
 - `ResponseHandledMarker`

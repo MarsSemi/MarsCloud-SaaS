@@ -72,7 +72,8 @@ func VerifyToken(_auth_string string, _group UserGroup, _ipadd_from string) *Mar
 		if _ipadd_from != "" {
 			Tools.Log.Print(Tools.LL_Debug, "Verify token fail from "+_ipadd_from)
 		} else {
-			Tools.Log.Print(Tools.LL_Debug, "Verify token fail : "+_auth_string)
+			// 驗證憑證不得寫入日誌，即使驗證失敗也可能包含有效的敏感資料。
+			Tools.Log.Print(Tools.LL_Debug, "Verify token fail")
 		}
 	}
 

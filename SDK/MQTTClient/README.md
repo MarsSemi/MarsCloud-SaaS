@@ -35,8 +35,8 @@ client, _ := MQTTClient.Create()
 opts := MQTTClient.NewMQTTConnectOptions()
 opts.SetServer("tcp://127.0.0.1:1883")
 opts.SetClientID("demo-client")
-opts.SetUserName("demo")
-opts.SetPassword([]byte("demo"))
+opts.SetUserName("<your-account>")
+opts.SetPassword([]byte("<your-password>"))
 client.Connect(opts)
 ```
 

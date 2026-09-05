@@ -4,12 +4,12 @@ MarsCloud-SaaS SDK for Go，提供 MarsCloud 雲端服務的開發套件。
 
 ## 版本
 
-- **Go 版本**: 1.18+
+- **Go 版本**: 1.25.6 以上（依 `go.mod`）
 
 ## 安裝
 
 ```bash
-go get github.com/MarsSemi/MarsCloud-SaaS/SDK@v0.1.20
+go get github.com/MarsSemi/MarsCloud-SaaS/SDK
 ```
 
 ## 設定檔重點
@@ -20,13 +20,13 @@ SDK 預設使用 `agent.properties` 作為主要設定檔。以下是本版實�
 
 ```json
 {
-  "service_name": "Service_A1021B",
+  "service_name": "YOUR_SERVICE_NAME",
   "http_port": 8081,
   "https_port": 8443,
-  "mars_cloud_url": "https://<your-marscloud-host>",
-  "mars_cloud_account": "<your-account>",
-  "mars_cloud_password": "<your-password>",
-  "mars_cloud_proj": "<your-project>"
+  "mars_cloud_url": "",
+  "mars_cloud_account": "",
+  "mars_cloud_password": "",
+  "mars_cloud_proj": ""
 }
 ```
 

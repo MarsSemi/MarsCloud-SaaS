@@ -726,27 +726,15 @@ func KillSiblingInstance() int {
 }
 
 // -------------------------------------------------------------------------------------
+// RestartItSelf 保留參數、工作目錄與環境，直接交由作業系統啟動執行檔。
+// Unix 成功時以相同 PID 取代目前程序，不會返回；失敗時原程序仍可運作。
+// Windows 成功時返回 nil，呼叫端必須退出，子程序才會繼續初始化。
 func RestartItSelf() error {
-	self, err := os.Executable() // 取得當前執行檔路徑
-	if err != nil {
-		return err
+	_self, _err := os.Executable()
+	if _err != nil {
+		return fmt.Errorf("取得重啟執行檔失敗: %w", _err)
 	}
-
-	args := os.Args // 取得啟動時的原始參數
-
-	// 在 Windows 下，如果是透過 cmd 啟動，通常需要開啟新視窗
-	if runtime.GOOS == "windows" {
-		cmd := exec.Command("cmd", "/c", "start", self)
-		cmd.Args = append(cmd.Args, args[1:]...)
-		return cmd.Start()
-	}
-
-	// Unix 系統可以直接使用 Fork/Exec
-	cmd := exec.Command(self, args[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Start()
+	return restartProcess(_self, os.Args, os.Environ())
 }
 
 // -------------------------------------------------------------------------------------
@@ -1401,8 +1389,14 @@ func GlobalRecovery() {
 				_UnknowExceptionAutoResetCallback()
 			}
 
-			// 呼叫先前在 process.go 實作過的 RestartItSelf
-			RestartItSelf()
+			// 自訂 callback 負責完整重啟流程，避免失敗返回後又重啟一次。
+			if _UnknowExceptionAutoResetCallback == nil {
+				if _err := RestartItSelf(); _err != nil {
+					Log.Print(LL_Error, "重啟失敗，保留目前程序: %v", _err)
+				} else {
+					os.Exit(0)
+				}
+			}
 		}
 	}
 }

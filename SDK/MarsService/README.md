@@ -44,13 +44,11 @@ type IMarsService interface {
 ## 啟動流程摘要
 
 1. 讀取 `agent.properties`
-2. 偵測同名舊實例並 `kill`（取代 PID 檔機制）
-3. 檢查並清除佔用 `http_port` 的進程
-4. 初始化 `HttpService`
-5. 視設定決定是否啟本地 MQTT broker
-6. 若 `mars_cloud_url/account/password` 完整，在背景連線 MarsCloud；連線失敗時持續重試，不阻塞 HTTP/HTTPS 啟動
-7. 啟動 HTTP/HTTPS
-8. MarsCloud 連線成功後，在背景建立 MQTT client、AsyncTaskProcessor 並執行 service registry
+2. 初始化 `HttpService`，完成 HTTP/HTTPS listener 綁定與 TLS 憑證載入
+3. 視設定啟動本地 MQTT broker
+4. 監聽埠、TLS 或 broker 初始化失敗時記錄錯誤並以狀態碼 `1` 退出，讓外部管理器依策略重試
+5. 若 `mars_cloud_url/account/password` 完整，在背景連線 MarsCloud；連線失敗時持續重試，不阻塞 HTTP/HTTPS 啟動
+6. 啟動重啟排程與 GC；MarsCloud 連線成功後建立 MQTT client、AsyncTaskProcessor 並執行 service registry
 
 ## 一般範例
 
@@ -104,27 +102,16 @@ func main() {
 - `Start()` 會以 goroutine 非同步執行啟動流程；呼叫返回不代表 HTTP/HTTPS 已開始監聽，主程式需保持運行
 - 依賴 `MarsClient`、雲端 `MQTTClient` 或 `AsyncTaskProcessor` 的 API，應在使用前確認元件已完成初始化或雲端已連線
 - `OnMQTTMessage` 是雲端 MQTT client 的回調，本地 broker 則用 `SetLocalMQTTMessageCallback`
-- 啟動時會自動偵測並 `kill` 同執行檔名稱（不同 PID）的舊實例，不再依賴外部 PID 檔；舊版 `run_bg.sh` 寫入 `AgenticService.pid` 的步驟可省略
+- 啟動時不再關閉同名或佔用連接埠的程序；連接埠衝突會回報啟動失敗。舊設定 `conflict_restart` 不再用來清除程序或反覆重啟
 - 啟動時會 log 出當前 `Restart Timezone`，遠端容器若 `/etc/localtime` 缺失而 fallback `UTC` 可立即看出
-- 內建 `RestartService()` 會 fork 新 process 後 `os.Exit(0)`，目的是維持服務持續運作
+- 同一實例只啟動一次；重啟要求使用互斥控制，已有啟停操作時略過重複要求
 
 ## 部署注意：與 systemd 的相容性
 
-`MarsService` 內建 `RestartService()` / 自動定時重啟採用「fork 新 process → 舊 process `os.Exit(0)`」模式，這對 `systemd` 而言會被視為**服務正常結束**，導致：
+Unix（含 Linux、macOS）以 `exec` 直接替換目前程序，保留 PID、工作目錄、參數與環境。`exec` 回傳錯誤時，原服務的 listener 與背景工作繼續運作。systemd 的 `Type=simple` 能繼續追蹤相同 PID，內建重啟不需要改成 `Type=forking`。
 
-- `Type=simple`（預設）下，systemd 認定服務已退出，不會接管子 process，孤兒 process 會被收養給 PID 1；服務狀態變 `inactive (dead)` 而非 `active (running)`
-- 沒設 `Restart=always` 時 systemd 不會重新拉起
-- 設了 `Restart=always` 但搭配內建 `RestartService()`，會出現雙重重啟邏輯互相干擾
+Unix 內建重啟不呼叫 `BeforeServiceStop()` 或雲端離線通知，以免在 `exec` 失敗時無法恢復已清理的業務資源。作業系統會在程序替換時關閉一般 Go 網路連線；正在處理的請求會中斷。需要先完成業務清理時，應使用停止訊號並由外部管理器重新啟動。
 
-**建議擇一使用：**
+Windows 直接建立新程序，不經 `cmd start`。新程序透過繼承的父程序 handle 等待舊程序退出，再繼續初始化；建立失敗時原服務繼續運作。成功建立後，舊程序執行停止清理並退出，清理最多等待 30 秒。此方式適用於一般程序啟動，不代表 Windows 服務管理器會自動接管新 PID。
 
-1. **完全交給 systemd 管理（推薦）**
-   - 在 `agent.properties` 移除 `restart_time`、避免呼叫 `RestartService()`
-   - unit file 設 `Restart=always`、`RestartSec=3`，由 systemd 重啟
-   - 收到 `reboot` MQTT 命令時改以 `os.Exit(非 0)` 結束，讓 systemd 接手
-
-2. **使用內建重啟（適合非 systemd 環境，例：容器內以 `run_bg.sh` 啟動、Windows）**
-   - unit file 改用 `Type=forking`，並讓 process 自己處理 daemonize
-   - 或繼續用 `nohup` / 啟動腳本管理，不交給 systemd
-
-如果一定要在 systemd 下保留內建重啟邏輯，把 unit file 設成 `Type=forking` 並提供 `PIDFile=`，但這樣與本服務「啟動時自動 kill 同名舊實例」的設計會有時序競爭，仍**不建議混用**。
+成功替換或建立程序只代表作業系統接受啟動，不代表後續業務初始化完成。HTTP/HTTPS、TLS 或 broker 初始化失敗時會以狀態碼 `1` 退出；正式部署應搭配 systemd 的 `Restart=on-failure`、適當的 `RestartSec` 或其他外部管理器，處理啟動後失敗。此機制不提供零中斷或啟動後自動回復舊版本的保證。

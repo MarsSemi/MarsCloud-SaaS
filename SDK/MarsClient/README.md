@@ -49,7 +49,7 @@
 
 ```go
 client := MarsClient.Create()
-if !client.LoginWithProj("https://test.mars-cloud.com", "test", "test", "demo") {
+if !client.LoginWithProj("https://marscloud.example.com", "<your-account>", "<your-password>", "<your-project>") {
     panic("login fail")
 }
 

@@ -123,8 +123,10 @@ type MarsService struct {
 	syncTimer    *time.Ticker
 	defaultTimer *time.Ticker // 用於 AutoGC
 
-	stopChan chan struct{}
-	stopOnce sync.Once // 確保 close(stopChan) 只執行一次，防止 RestartService/Shutdown 重複觸發 panic
+	stopChan    chan struct{}
+	stopOnce    sync.Once // 整段停止清理只執行一次
+	startOnce   sync.Once
+	lifecycleMu sync.Mutex // 序列化啟動、停止與重啟，重複請求不排隊執行
 
 	autoRestartTime    MarsJSON.JSONArray
 	autoRestartMinutes []string       // restart_time 解析後的 "HH:MM" 清單，無效項目會被丟棄
@@ -233,72 +235,46 @@ func resolveRestartLocation(_name string) *time.Location {
 }
 
 // -------------------------------------------------------------------------------------
-func (_this *MarsService) checkPortConflict() {
-
-	// 檢查端口衝突並嘗試自動排除
-	if Tools.IsPortInUsing(_this.defaultHttpPort) {
-		// 執行強制清理
-		Tools.KillProcessByPort(_this.defaultHttpPort)
-
-		// 給予作業系統短暫的時間釋放 Socket
-		time.Sleep(3 * time.Second)
-
-		// 再次檢查，如果還是被佔用，則執行原有的衝突處理邏輯
-		if Tools.IsPortInUsing(_this.defaultHttpPort) {
-			Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("Unable to clear Port %d, check permissions.", _this.defaultHttpPort))
-			if _this.Property.OptBoolean("conflict_restart", false) {
-				_this.RestartService()
-				return
-			} else {
-				os.Exit(0)
-			}
-		}
-	}
-}
-
-// -------------------------------------------------------------------------------------
+// Start 非同步啟動；以實際綁定 listener 的結果判斷成功，不依程序名稱或連接埠殺程序。
 func (_this *MarsService) Start() {
-
-	go func() {
-
-		//延遲啟動一下
-		time.Sleep(100 * time.Millisecond)
-
-		// 偵測同名舊實例並關閉，避免服務重複啟動（取代外部 PID 檔機制）
-		if Tools.KillSiblingInstance() > 0 {
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		// 檢查端口衝突
-		_this.checkPortConflict()
-
-		if _this.HttpService != nil {
+	_this.startOnce.Do(func() {
+		go func() {
+			_this.lifecycleMu.Lock()
+			defer _this.lifecycleMu.Unlock()
+			if _this.isStopping() {
+				return
+			}
 
 			_url := _this.Property.OptString("mars_cloud_url", "")
 			_proj := _this.Property.OptString("mars_cloud_proj", "")
 			_hasCloudConfig := _this.hasCompleteMarsCloudConfig(_url)
 
+			if _this.HttpService != nil {
+				_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
+				_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
+				if _err := _this.HttpService.RunWithError(); _err != nil {
+					Tools.Log.Print(Tools.LL_Error, "服務啟動失敗: %v", _err)
+					os.Exit(1)
+				}
+			}
 			if _this.shouldStartLocalMQTTServer(_hasCloudConfig) {
-				_this.startLocalMQTTServer()
+				if _err := _this.startLocalMQTTServer(); _err != nil {
+					Tools.Log.Print(Tools.LL_Error, "服務啟動失敗: %v", _err)
+					_this.CloseNetService()
+					os.Exit(1)
+				}
 			}
 
-			// 雲端連線改成背景重試，避免雲端不可達時 HTTP server 永遠不啟動、操作介面（含 /system）也救不了
 			if _hasCloudConfig {
 				go _this.connectCloudInBackground(_url, _proj)
 			} else {
 				Tools.Log.Print(Tools.LL_Info, "MarsCloud disabled: mars_cloud_url/account/password 缺少設定，使用一般 Server 模式啟動")
 			}
-
-			_this.HttpService.SetRootPath(_this.Property.OptString("web_path", "./website"))
-			_this.HttpService.SetDefaultCacheControl("public, max-age=43200")
-			_this.HttpService.Run()
-		}
-
-		_this.ResetAutoRestart()
-		_this.ResetAutoGC()
-
-		Tools.Log.Print(Tools.LL_Info, "Service Start : %s %s", _this.ServiceName, _this.ServiceVersion)
-	}()
+			_this.ResetAutoRestart()
+			_this.ResetAutoGC()
+			Tools.Log.Print(Tools.LL_Info, "Service Start : %s %s", _this.ServiceName, _this.ServiceVersion)
+		}()
+	})
 }
 
 // -------------------------------------------------------------------------------------
@@ -314,9 +290,9 @@ func (_this *MarsService) shouldStartLocalMQTTServer(_hasCloudConfig bool) bool 
 }
 
 // -------------------------------------------------------------------------------------
-func (_this *MarsService) startLocalMQTTServer() {
+func (_this *MarsService) startLocalMQTTServer() error {
 	if _this.LocalMQTTServer != nil {
-		return
+		return nil
 	}
 
 	_config := MarsMQTTServer.Config{
@@ -338,7 +314,9 @@ func (_this *MarsService) startLocalMQTTServer() {
 	if _err := _this.LocalMQTTServer.Start(); _err != nil {
 		Tools.Log.Print(Tools.LL_Error, "Local MQTT server start fail: %s", _err.Error())
 		_this.LocalMQTTServer = nil
+		return _err
 	}
+	return nil
 }
 
 // -------------------------------------------------------------------------------------
@@ -361,13 +339,7 @@ func (_this *MarsService) initCloseHook() {
 		Tools.Log.Print(Tools.LL_Info, "- ")
 		Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Get Closing Signal : %v, clean up ...", _sig))
 
-		// 走統一的 StopService 路徑：BeforeServiceStop / 雲端離線 / 關閉網路 / 廣播 stopChan 一次到位
-		_this.StopService()
-
-		Tools.Log.Print(Tools.LL_Info, "Clean up finish, process exit")
-		Tools.Log.Print(Tools.LL_Info, "- ")
-
-		os.Exit(0)
+		_this.ShutdownService()
 	}()
 }
 
@@ -378,7 +350,7 @@ func (_this *MarsService) connectCloudInBackground(_url string, _proj string) {
 	defer Tools.GlobalRecovery()
 
 	_this.initMarsClient(_url, _this.account, _this.password, _proj)
-	if _this.MarsClient == nil {
+	if _this.MarsClient == nil || _this.isStopping() {
 		return
 	}
 
@@ -398,13 +370,21 @@ func (_this *MarsService) initMarsClient(_url, _account, _pass, _proj string) {
 		_this.MarsClient = MarsClient.Create()
 	}
 
-	// 嘗試登入，失敗則持續重試 (模擬 Java while 邏輯)
-	for !_this.MarsClient.LoginWithProj(_url, _account, _pass, _proj) {
+	// 停止時結束重試，避免清理期間又啟動新的雲端連線。
+	for !_this.isStopping() {
+		if _this.MarsClient.LoginWithProj(_url, _account, _pass, _proj) {
+			Tools.Log.Print(Tools.LL_Info, "Init MarsCloud Client: true")
+			return
+		}
 		Tools.Log.Print(Tools.LL_Info, "MarsCloud connect fail, Retry: %s", _url)
-		time.Sleep(5 * time.Second)
+		_timer := time.NewTimer(5 * time.Second)
+		select {
+		case <-_timer.C:
+		case <-_this.stopChan:
+			_timer.Stop()
+			return
+		}
 	}
-
-	Tools.Log.Print(Tools.LL_Info, "Init MarsCloud Client: true")
 }
 
 // -------------------------------------------------------------------------------------
@@ -807,34 +787,65 @@ func (_this *MarsService) ResetAutoGC() {
 // 關閉邏輯
 //-------------------------------------------------------------------------------------
 
+func (_this *MarsService) isStopping() bool {
+	select {
+	case <-_this.stopChan:
+		return true
+	default:
+		return false
+	}
+}
+
 func (_this *MarsService) StopService() bool {
-	// 1. 執行停止前的清理邏輯
-	if _this.impl != nil {
-		_this.impl.BeforeServiceStop()
+	if !_this.lifecycleMu.TryLock() {
+		return false
 	}
+	defer _this.lifecycleMu.Unlock()
+	_this.stopService()
+	return true
+}
 
-	// 2. 通知雲端服務目前為離線狀態並執行最後一次註冊同步
-	if _this.ServiceInfo != nil {
-		_this.ServiceInfo.Put("is_online", false)
-		_this.doRegistry(false)
-	}
-
-	// 3. 廣播停止訊號，讓 heartbeat / AutoGC / ResetMQTTClient 等背景 goroutine 退出
+// 呼叫端持有 lifecycleMu；先取消背景工作，清理 callback 與網路資源只執行一次。
+func (_this *MarsService) stopService() {
 	_this.stopOnce.Do(func() {
 		close(_this.stopChan)
+		if _this.syncTimer != nil {
+			_this.syncTimer.Stop()
+		}
+		if _this.defaultTimer != nil {
+			_this.defaultTimer.Stop()
+		}
+		defer _this.CloseNetService()
+		if _this.impl != nil {
+			_this.impl.BeforeServiceStop()
+		}
+		if _this.ServiceInfo != nil {
+			_this.ServiceInfo.Put("is_online", false)
+			_this.doRegistry(false)
+		}
+		Tools.Log.Print(Tools.LL_Info, "Service Stopped")
 	})
-	if _this.syncTimer != nil {
-		_this.syncTimer.Stop()
-	}
-	if _this.defaultTimer != nil {
-		_this.defaultTimer.Stop()
-	}
+}
 
-	// 4. 關閉網路連線資源
-	_this.CloseNetService()
-
-	Tools.Log.Print(Tools.LL_Info, "Service Stopped")
-	return true
+// 程序即將退出時，限制自訂 callback／遠端離線通知的等待時間。
+func (_this *MarsService) stopBeforeExit() {
+	_done := make(chan struct{})
+	go func() {
+		defer close(_done)
+		defer func() {
+			if _r := recover(); _r != nil {
+				Tools.Log.Print(Tools.LL_Error, "服務停止清理發生異常: %v", _r)
+			}
+		}()
+		_this.stopService()
+	}()
+	_timer := time.NewTimer(30 * time.Second)
+	defer _timer.Stop()
+	select {
+	case <-_done:
+	case <-_timer.C:
+		Tools.Log.Print(Tools.LL_Warning, "服務停止清理超過 30 秒，退出程序以釋放資源")
+	}
 }
 
 // -------------------------------------------------------------------------------------
@@ -857,11 +868,10 @@ func (_this *MarsService) CloseNetService() {
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsService) ShutdownService() {
-
-	_this.StopService()
-
-	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to shutdown ...")
-
+	// 關機訊號不可遺失：若啟動或重啟交接正在進行，等待該操作完成後再清理。
+	_this.lifecycleMu.Lock()
+	defer _this.lifecycleMu.Unlock()
+	_this.stopBeforeExit()
 	os.Exit(0)
 }
 
@@ -869,20 +879,23 @@ func (_this *MarsService) ShutdownService() {
 // 重啟管理
 // -------------------------------------------------------------------------------------
 func (_this *MarsService) RestartService() {
-
-	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to restart...")
-
-	_this.StopService()
-
-	//呼叫 Tools 中的實體重啟邏輯
-	_err := Tools.RestartItSelf()
-
-	if _err != nil {
-		Tools.Log.Print(Tools.LL_Error, "Restart failed: %s", _err.Error())
+	if !_this.lifecycleMu.TryLock() {
+		Tools.Log.Print(Tools.LL_Warning, "服務正在執行啟停操作，略過重複重啟要求")
+		return
+	}
+	defer _this.lifecycleMu.Unlock()
+	if _this.isStopping() {
 		return
 	}
 
-	// 5. 成功啟動新程序後，退出當前程序
+	Tools.Log.Print(Tools.LL_Warning, "Service is preparing to restart...")
+	// 必須先嘗試交接；失敗時不停止 listener、背景工作或自訂業務資源。
+	// Unix 以原 PID exec，成功後不返回；Windows 新程序會等待目前程序退出。
+	if _err := Tools.RestartItSelf(); _err != nil {
+		Tools.Log.Print(Tools.LL_Error, "重啟失敗，目前服務繼續運作: %v", _err)
+		return
+	}
+	_this.stopBeforeExit()
 	os.Exit(0)
 }
 
@@ -921,15 +934,17 @@ func (_this *MarsService) ResetAutoRestart() {
 					continue
 				}
 
-				_currentMinute := time.Now().In(_this.restartLocation).Format("15:04")
-				if _currentMinute == _lastFireMinute {
+				_now := time.Now().In(_this.restartLocation)
+				_currentMinute := _now.Format("15:04")
+				_fireMinute := _now.Format("2006-01-02 15:04")
+				if _fireMinute == _lastFireMinute {
 					continue
 				}
 
 				for _, _target := range _this.autoRestartMinutes {
 					if _currentMinute == _target {
 						Tools.Log.Print(Tools.LL_Warning, "Restart time reached: "+_target)
-						_lastFireMinute = _currentMinute
+						_lastFireMinute = _fireMinute
 						_this.RestartService()
 						// 成功時程序會 os.Exit(0)；失敗時繼續監控等下個排程
 						break

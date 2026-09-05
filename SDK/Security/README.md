@@ -94,6 +94,20 @@ token, err := Security.JWT.CreateExtendedToken(
 verified, err := Security.JWT.VerifyExtendedToken(token, false)
 ```
 
+### 驗證整合規則
+
+- 不得以句點數量判斷 token 類型。五段資料可能是 compact JWE，也可能是 MARS Extended JWT。
+- 不得只 Base64URL decode 第二段就信任 claims；必須使用 `VerifyExtendedToken` 或 `Security.VerifyToken`。
+- `VerifyExtendedToken` 會分開回傳 `Claims` 與 `Extensions`；`Security.VerifyToken` 驗證 Extended JWT 後，會將 extensions 放入 `mars_extensions`。
+- 不需要讀取 claims 的服務應把 token 視為 opaque credential，交由發行端的 introspection API 驗證。
+- extension 不可直接附加到既有 token；內容或段數變更後必須重新簽發。
+
+### 傳輸大小
+
+64 KiB payload 與每段 16 KiB extension 是 SDK 拒絕異常輸入的安全界線，不是建議 token 大小。Bearer token 通常會經過 Cookie、Proxy 與 HTTP Header，正式 Web 登入 token 建議控制在 3 KiB 以內，以避開常見約 4 KiB 的單一 Cookie 限制。
+
+第二段 JWT payload 可被任何 token 持有者讀取，不得存放秘密。Extension 在 token 中使用 AES-GCM 加密，但呼叫端仍需自行保護產生 extension 的原始資料與靜態儲存。
+
 ## 注意事項
 
 - `exp` 以秒為單位

@@ -19,8 +19,8 @@
 
 ```go
 src := []byte("hello zip")
-zipData := DataCompress.ZipDefault(src, "123456")
-plain := DataCompress.UnZipBytes(zipData, "123456")
+zipData := DataCompress.ZipDefault(src, "<zip-password>")
+plain := DataCompress.UnZipBytes(zipData, "<zip-password>")
 ```
 
 ## 注意事項

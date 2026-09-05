@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -270,6 +271,54 @@ func (_this *HttpService) Run() {
 			}
 		}()
 	}
+}
+
+// RunWithError 先完成所有 listener 與 TLS 憑證初始化，再啟動 Serve goroutine。
+// 任一 listener 失敗都不會留下半啟動的 HTTP/HTTPS 服務。
+func (_this *HttpService) RunWithError() error {
+	var _httpListener, _httpsListener net.Listener
+	var _err error
+	if _this._HttpServer != nil {
+		_httpListener, _err = net.Listen("tcp", _this._HttpServer.Addr)
+		if _err != nil {
+			return fmt.Errorf("HTTP listen %s: %w", _this._HttpServer.Addr, _err)
+		}
+	}
+	if _this._HttpsServer != nil {
+		_cert, _certErr := _this.loadTLSCertificate()
+		if _certErr != nil {
+			if _httpListener != nil {
+				_httpListener.Close()
+			}
+			return fmt.Errorf("HTTPS TLS load: %w", _certErr)
+		}
+		_this._HttpsServer.TLSConfig.Certificates = []tls.Certificate{_cert}
+		_httpsListener, _err = net.Listen("tcp", _this._HttpsServer.Addr)
+		if _err != nil {
+			if _httpListener != nil {
+				_httpListener.Close()
+			}
+			return fmt.Errorf("HTTPS listen %s: %w", _this._HttpsServer.Addr, _err)
+		}
+		_httpsListener = tls.NewListener(_httpsListener, _this._HttpsServer.TLSConfig)
+	}
+	if _httpListener != nil {
+		go func() {
+			Tools.Log.Print(Tools.LL_Info, "Http Listen at : %d", _this._HttpPort)
+			if _err := _this._HttpServer.Serve(_httpListener); _err != nil && _err != http.ErrServerClosed {
+				Tools.Log.Print(Tools.LL_Error, "HTTP Listen Error: %v", _err)
+			}
+		}()
+	}
+	if _httpsListener != nil {
+		go func() {
+			Tools.Log.Print(Tools.LL_Info, "Https Listen at : %d", _this._HttpsPort)
+			if _err := _this._HttpsServer.Serve(_httpsListener); _err != nil && _err != http.ErrServerClosed {
+				Tools.Log.Print(Tools.LL_Error, "HTTPS Listen Error: %v", _err)
+			}
+		}()
+	}
+	return nil
 }
 
 // -------------------------------------------------------------------------------------
