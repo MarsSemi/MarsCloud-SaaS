@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/MarsJSON"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/Security"
@@ -44,8 +43,7 @@ type MarsClient struct {
 
 	EnableLoadBalance bool
 
-	// mu 保護以上欄位的並行讀寫；外部仍可直接讀 AuthToken/Account 等欄位（單一指標讀取在 Go 多平台基本原子），
-	// 但內部寫入路徑（ReLogin / UpdateServerURL / resetServerURLs）以及讀寫密集的 GetServerURL 必須走鎖
+	// 公開欄位僅供初始化相容使用；執行期間請透過方法存取憑證，禁止直接並行寫入。
 	mu sync.RWMutex
 }
 
@@ -94,8 +92,10 @@ func (_this *MarsClient) resetServerURLs(_url string) {
 // Login 基礎登入
 func (_this *MarsClient) Login(_url string, _account string, _pass string) bool {
 	_this.resetServerURLs(_url)
+	_this.mu.Lock()
 	_this.Account = _account
 	_this.Password = _pass
+	_this.mu.Unlock()
 	return _this.ReLogin()
 }
 
@@ -103,9 +103,11 @@ func (_this *MarsClient) Login(_url string, _account string, _pass string) bool 
 // LoginWithProj 帶有專案 ID 的登入
 func (_this *MarsClient) LoginWithProj(_url string, _account string, _pass string, _proj string) bool {
 	_this.resetServerURLs(_url)
+	_this.mu.Lock()
 	_this.Account = _account
 	_this.Password = _pass
 	_this.ProjID = _proj
+	_this.mu.Unlock()
 	return _this.ReLogin()
 }
 
@@ -113,7 +115,9 @@ func (_this *MarsClient) LoginWithProj(_url string, _account string, _pass strin
 // LoginByToken 使用現有 Token 登入
 func (_this *MarsClient) LoginByToken(_url string, _token string) bool {
 	_this.resetServerURLs(_url)
+	_this.mu.Lock()
 	_this.AuthToken = _token
+	_this.mu.Unlock()
 	return _this.ReLogin()
 }
 
@@ -121,9 +125,11 @@ func (_this *MarsClient) LoginByToken(_url string, _token string) bool {
 // LoginByKeyWithProj 使用 Key 與專案 ID 登入
 func (_this *MarsClient) LoginByKeyWithProj(_url string, _proj string, _key string) bool {
 	_this.resetServerURLs(_url)
+	_this.mu.Lock()
 	_this.Account = _proj
 	_this.ProjID = _proj
 	_this.SecretKey = _key
+	_this.mu.Unlock()
 	return _this.ReLogin()
 }
 
@@ -131,7 +137,9 @@ func (_this *MarsClient) LoginByKeyWithProj(_url string, _proj string, _key stri
 // LoginByKey 使用 Key 登入
 func (_this *MarsClient) LoginByKey(_url string, _key string) bool {
 	_this.resetServerURLs(_url)
+	_this.mu.Lock()
 	_this.SecretKey = _key
+	_this.mu.Unlock()
 	return _this.ReLogin()
 }
 
@@ -139,32 +147,35 @@ func (_this *MarsClient) LoginByKey(_url string, _key string) bool {
 // ReLogin 重新執行登入流程
 func (_this *MarsClient) ReLogin() bool {
 
+	_this.mu.RLock()
+	account, password, proj, key, token := _this.Account, _this.Password, _this.ProjID, _this.SecretKey, _this.AuthToken
+	_this.mu.RUnlock()
 	_token := ""
 
-	if len(_this.Account) > 0 && len(_this.Password) > 0 {
+	if len(account) > 0 && len(password) > 0 {
 		_payload := MarsJSON.NewJSONObject(nil)
-		_payload.Put("usr", _this.Account)
-		_payload.Put("pwd", _this.Password)
-		_payload.Put("proj", _this.ProjID)
+		_payload.Put("usr", account)
+		_payload.Put("pwd", password)
+		_payload.Put("proj", proj)
 
 		_api := "/auth/login?"
-		if len(_this.ProjID) > 0 {
-			_api = "/auth/login?proj=" + _this.ProjID
+		if len(proj) > 0 {
+			_api = "/auth/login?proj=" + proj
 		}
 		_token = Tools.HttpPost(_this.GetServerURL()+_api, "", "", _payload.ToString(), 0)
 
-	} else if len(_this.SecretKey) > 0 {
+	} else if len(key) > 0 {
 		_urlStr := _this.GetServerURL() + "/auth/get_auth_by_key?"
-		if len(_this.ProjID) > 0 {
-			_urlStr += "proj=" + _this.ProjID
+		if len(proj) > 0 {
+			_urlStr += "proj=" + proj
 		}
-		_token = Tools.HttpPost(_urlStr, "", "", _this.SecretKey, 0)
-	} else if len(_this.AuthToken) > 0 {
+		_token = Tools.HttpPost(_urlStr, "", "", key, 0)
+	} else if len(token) > 0 {
 		// 僅有既存 Token 時不可使用空 SecretKey 覆蓋有效憑證。
-		if len(_this.SecretKey) == 0 {
+		if len(key) == 0 {
 			return true
 		}
-		_token = Tools.HttpPost(_this.GetServerURL()+"/auth/get_auth_by_key?", "", "", _this.SecretKey, 0)
+		_token = Tools.HttpPost(_this.GetServerURL()+"/auth/get_auth_by_key?", "", "", key, 0)
 	}
 
 	_this.mu.Lock()
@@ -183,13 +194,13 @@ func (_this *MarsClient) ReLogin() bool {
 // -------------------------------------------------------------------------------------
 // UpdateServerURL 更新負載平衡的伺服器清單
 func (_this *MarsClient) UpdateServerURL() {
-	if !_this.EnableLoadBalance || len(_this.AuthToken) <= 10 {
+	if !_this.loadBalanceEnabled() || len(_this.GetAuthToken()) <= 10 {
 		return
 	}
 
 	// HTTP 呼叫不在鎖內，避免阻塞所有 GetServerURL 讀取
 	_api := _this.GetServerURL() + "/api/get_broker_list?"
-	_resp := Tools.HttpPost(_api, _this.AuthToken, "", "", 0)
+	_resp := Tools.HttpPost(_api, _this.GetAuthToken(), "", "", 0)
 	if _resp == "" {
 		return
 	}
@@ -239,7 +250,7 @@ func (_this *MarsClient) GetServerURL() string {
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) CallAPI(_api string, _payload string, _timeout int) string {
 	_url := _this.GetServerURL() + _api
-	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, _timeout)
+	return Tools.HttpPost(_url, _this.GetAuthToken(), "application/json", _payload, _timeout)
 }
 
 // -------------------------------------------------------------------------------------
@@ -249,7 +260,7 @@ func (_this *MarsClient) CallAPISpecify(_url string, _api string, _payload strin
 		return ""
 	}
 
-	return Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload, _timeout)
+	return Tools.HttpPost(_url, _this.GetAuthToken(), "application/json", _payload, _timeout)
 }
 
 //-------------------------------------------------------------------------------------
@@ -266,7 +277,7 @@ func (_this *MarsClient) DownloadOTA(_srcFile string, _destFile string, _packet 
 
 	// 模擬 Java 版的高逾時設定 (10 分鐘)
 	_api := _this.GetServerURL() + "/op/get_ota_file?"
-	_data := Tools.HttpPost(_api, _this.AuthToken, "", _payload.ToString(), 600000)
+	_data := Tools.HttpPost(_api, _this.GetAuthToken(), "", _payload.ToString(), 600000)
 
 	if _data != "" {
 		_buf, _err := base64.StdEncoding.DecodeString(_data)
@@ -284,7 +295,7 @@ func (_this *MarsClient) DownloadOTA(_srcFile string, _destFile string, _packet 
 func (_this *MarsClient) ResetSecurityKey() bool {
 	defer Tools.GlobalRecovery()
 
-	if _this.AuthToken == "" {
+	if _this.GetAuthToken() == "" {
 		return false
 	}
 
@@ -340,7 +351,7 @@ func (_this *MarsClient) RegistryServiceProperties(_id string, _prop string) boo
 
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) RegistryDevice(_root *MarsJSON.JSONObject) bool {
-	if len(_this.AuthToken) < 20 {
+	if len(_this.GetAuthToken()) < 20 {
 		return false
 	}
 	_resp := _this.CallAPI("/api/usrinfo?method=adddatasrc", _root.ToString(), _DefaultTimeOut)
@@ -608,39 +619,6 @@ func (_this *MarsClient) UnzipDataHuge(_dataBase64 string) []string {
 	return _list
 }
 
-//-------------------------------------------------------------------------------------
-// 非同步任務 (Async Task)
-//-------------------------------------------------------------------------------------
-
-func (_this *MarsClient) RunAsyncTask(_taskID string, _service string, _api string, _payload *MarsJSON.JSONObject, _callback AsyncTaskCallback) {
-	if _taskID == "" || _api == "" || _callback == nil {
-		return
-	}
-
-	// 啟動 Goroutine 處理非同步任務 (模擬 Java Thread)
-	go func() {
-		defer Tools.GlobalRecovery()
-
-		_uri := strings.ReplaceAll(_api, "/", "+")
-		_url := fmt.Sprintf("%s/services-async/run/%s/%s/%s", _this.GetServerURL(), _taskID, _service, _uri)
-		_resp := Tools.HttpPost(_url, _this.AuthToken, "application/json", _payload.ToString(), 0)
-
-		for _resp != "" {
-			time.Sleep(2 * time.Second)
-			// 檢查狀態
-			_checkURL := fmt.Sprintf("%s/services-async/check/%s", _this.GetServerURL(), _taskID)
-			_resp = Tools.HttpGet(_checkURL, _this.AuthToken, 0)
-
-			if _callback(_resp) {
-				_resObj := MarsJSON.NewJSONObject(_resp)
-				if _resObj.OptBoolean("done", false) {
-					break
-				}
-			}
-		}
-	}()
-}
-
 // -------------------------------------------------------------------------------------
 func (_this *MarsClient) ReportAsyncTask(_taskID, _status string, _progress int) string {
 	if _taskID == "" {
@@ -692,3 +670,18 @@ func (_this *MarsClient) SendBroadcast(_from string, _msg *MarsJSON.JSONObject) 
 }
 
 // -------------------------------------------------------------------------------------
+
+// GetAuthToken 安全讀取登入憑證。
+func (c *MarsClient) GetAuthToken() string { c.mu.RLock(); defer c.mu.RUnlock(); return c.AuthToken }
+
+// SetAuthToken 安全更新登入憑證。
+func (c *MarsClient) SetAuthToken(token string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.AuthToken = token
+}
+func (c *MarsClient) loadBalanceEnabled() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.EnableLoadBalance
+}

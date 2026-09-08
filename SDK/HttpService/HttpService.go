@@ -174,6 +174,16 @@ func (_this *HttpService) serveHTTP(_w http.ResponseWriter, _r *http.Request) {
 }
 
 func resolvePublicStaticFile(_absRoot string, _absFile string, _defaultHTML string) (string, error) {
+	// Resolve symlinks before serving to ensure the requested file remains under
+	// the configured public root; lexical path checks alone are insufficient.
+	_realRoot, _err := filepath.EvalSymlinks(_absRoot)
+	if _err != nil {
+		return "", _err
+	}
+	_realFile, _err := filepath.EvalSymlinks(_absFile)
+	if _err != nil || (_realFile != _realRoot && !strings.HasPrefix(_realFile, _realRoot+string(filepath.Separator))) {
+		return "", os.ErrNotExist
+	}
 	_info, _err := os.Stat(_absFile)
 	if _err != nil || !_info.Mode().IsRegular() && !_info.IsDir() {
 		return "", os.ErrNotExist
@@ -189,6 +199,10 @@ func resolvePublicStaticFile(_absRoot string, _absFile string, _defaultHTML stri
 	_candidates = append(_candidates, "index.html")
 	for _, _name := range _candidates {
 		_candidate := filepath.Join(_absFile, _name)
+		_realCandidate, _candidateErr := filepath.EvalSymlinks(_candidate)
+		if _candidateErr != nil || (_realCandidate != _realRoot && !strings.HasPrefix(_realCandidate, _realRoot+string(filepath.Separator))) {
+			continue
+		}
 		_candidateInfo, _candidateErr := os.Stat(_candidate)
 		if _candidateErr == nil && _candidateInfo.Mode().IsRegular() {
 			return _candidate, nil
@@ -209,21 +223,29 @@ func (_this *HttpService) AddRestfulAPI(_uri string, _callback HttpAPI_Callback)
 		if strings.HasSuffix(_uri, "/") == false {
 			_uri = _uri + "/"
 		}
+		if !strings.HasPrefix(_uri, "/") {
+			_uri = "/" + _uri
+		}
+		// "/" 已由靜態檔案 dispatcher 佔用，避免重複註冊造成 ServeMux panic。
+		if _uri == "/" {
+			return
+		}
 
-		_api := CreateHttpAPI(_callback)
-
-		_this._Handlers[_uri] = _api.callBack
-		// ServeMux 無法動態移除路由，使用 dispatcher 檢查目前註冊表。
-		_this._Mux.HandleFunc(_uri, func(w http.ResponseWriter, r *http.Request) {
-			_this._MuxLock.RLock()
-			_, exists := _this._Handlers[_uri]
-			_this._MuxLock.RUnlock()
-			if !exists {
-				http.NotFound(w, r)
-				return
-			}
-			_api.servHTTP(w, r)
-		})
+		// ServeMux 不支援動態移除路由；每個 URI 只註冊一次 dispatcher。
+		// 後續重複 Add 僅更新 callback，避免重複 HandleFunc 導致 panic。
+		if _, exists := _this._Handlers[_uri]; !exists {
+			_this._Mux.HandleFunc(_uri, func(w http.ResponseWriter, r *http.Request) {
+				_this._MuxLock.RLock()
+				_callback, exists := _this._Handlers[_uri]
+				_this._MuxLock.RUnlock()
+				if !exists || _callback == nil {
+					http.NotFound(w, r)
+					return
+				}
+				CreateHttpAPI(_callback).servHTTP(w, r)
+			})
+		}
+		_this._Handlers[_uri] = _callback
 
 		//Tools.ConsolePrint("AddRestfulAPI : " + _uri)
 	}
@@ -238,49 +260,20 @@ func (_this *HttpService) RemoveRestfulAPI(_uri string) {
 	if strings.HasSuffix(_uri, "/") == false {
 		_uri += "/"
 	}
-	delete(_this._Handlers, _uri)
+	if !strings.HasPrefix(_uri, "/") {
+		_uri = "/" + _uri
+	}
+	// 保留已註冊標記，重新加入路由時不再重複註冊 ServeMux。
+	if _, exists := _this._Handlers[_uri]; exists {
+		_this._Handlers[_uri] = nil
+	}
 }
 
 // -------------------------------------------------------------------------------------
 // run 啟動服務 (對應 Java 的 start() -> run())
 func (_this *HttpService) Run() {
-
-	// HTTP Server
-	if _this._HttpServer != nil {
-
-		go func() {
-
-			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Http Listen at : %d", _this._HttpPort))
-
-			if _err := _this._HttpServer.ListenAndServe(); _err != nil && _err != http.ErrServerClosed {
-
-				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTP Listen Error: %v", _err))
-
-			}
-		}()
-	}
-
-	// HTTPS Server
-	if _this._HttpsServer != nil {
-
-		go func() {
-
-			Tools.Log.Print(Tools.LL_Info, fmt.Sprintf("Https Listen at : %d", _this._HttpsPort))
-
-			_cert, _err := _this.loadTLSCertificate()
-			if _err != nil {
-				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTPS TLS Load Error: %v", _err))
-				return
-			}
-
-			_this._HttpsServer.TLSConfig.Certificates = []tls.Certificate{_cert}
-
-			if _err = _this._HttpsServer.ListenAndServeTLS("", ""); _err != nil && _err != http.ErrServerClosed {
-
-				Tools.Log.Print(Tools.LL_Error, fmt.Sprintf("HTTPS Listen Error: %v\n", _err))
-
-			}
-		}()
+	if err := _this.RunWithError(); err != nil {
+		Tools.Log.Print(Tools.LL_Error, "HTTP startup: %v", err)
 	}
 }
 
@@ -338,13 +331,17 @@ func (_this *HttpService) Close() bool {
 	_ctx, _cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer _cancel()
 
-	if _this._HttpServer != nil {
-		_this._HttpServer.Shutdown(_ctx)
+	ok := true
+	for _, server := range []*http.Server{_this._HttpServer, _this._HttpsServer} {
+		if server != nil {
+			if err := server.Shutdown(_ctx); err != nil {
+				ok = false
+				Tools.Log.Print(Tools.LL_Error, "HTTP shutdown: %v", err)
+				server.Close()
+			}
+		}
 	}
-	if _this._HttpsServer != nil {
-		_this._HttpsServer.Shutdown(_ctx)
-	}
-	return true
+	return ok
 }
 
 // -------------------------------------------------------------------------------------

@@ -103,7 +103,7 @@ func (_this *MQTTClient) Connect(_options *MQTTConnectOptions) error {
 	_opts.SetConnectTimeout(time.Duration(_options.ConnectionTimeout) * time.Second)
 	_opts.SetAutoReconnect(_options.AutomaticReconnect)
 	if strings.HasPrefix(_options.Server, "ssl://") || strings.HasPrefix(_options.Server, "wss://") {
-		_opts.SetTLSConfig(&tls.Config{InsecureSkipVerify: Tools.DefaultInsecureTLS})
+		_opts.SetTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: Tools.DefaultInsecureTLS})
 	}
 
 	// 設定連線遺失回調

@@ -4,6 +4,7 @@ package Tools
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/base64"
@@ -23,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/mem"
@@ -37,9 +39,37 @@ const (
 )
 
 // -------------------------------------------------------------------------------------
-// DefaultInsecureTLS 控制 HttpPost / MQTT TLS 是否略過憑證驗證，預設保留舊版行為（true）
-// 由 MarsService 在初始化時依 properties 中的 tls_skip_verify 決定，可設成 false 強制驗證
-var DefaultInsecureTLS = true
+// DefaultInsecureTLS 控制 HttpPost / MQTT TLS 是否略過憑證驗證，預設 false。
+// 僅可在啟動連線前設定；執行中不得修改此相容性設定。
+// MarsService 依 properties 的 tls_skip_verify 明確選擇略過驗證。
+var DefaultInsecureTLS = false
+
+var (
+	_httpTransportOnce sync.Once
+	_httpTransport     *http.Transport
+	_httpInsecure      *http.Transport
+)
+
+// httpClient 建立具備共用 Transport 的 client，避免每次請求重新建立
+// TCP/TLS 連線池；timeout 仍可依呼叫端需求設定。
+func httpClient(_timeoutMs int, _insecure bool) *http.Client {
+	_httpTransportOnce.Do(func() {
+		_base := http.DefaultTransport.(*http.Transport).Clone()
+		_base.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		_httpTransport = _base
+		_insecureTransport := _base.Clone()
+		_insecureTransport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true} // #nosec G402: explicitly requested by caller
+		_httpInsecure = _insecureTransport
+	})
+	if _timeoutMs <= 0 {
+		_timeoutMs = int(DefaultTimeout.Milliseconds())
+	}
+	_transport := _httpTransport
+	if _insecure {
+		_transport = _httpInsecure
+	}
+	return &http.Client{Transport: _transport, Timeout: time.Duration(_timeoutMs) * time.Millisecond}
+}
 
 //-------------------------------------------------------------------------------------
 // Stopwatch 區段
@@ -118,7 +148,7 @@ func IsLinux() bool {
 
 func IsFileExists(_fn string) bool {
 	_, err := os.Stat(_fn)
-	return !os.IsNotExist(err)
+	return err == nil
 }
 
 // -------------------------------------------------------------------------------------
@@ -151,21 +181,16 @@ func DeleteFile(_fn string) bool {
 // 網路功能 (HTTP)
 // -------------------------------------------------------------------------------------
 func HttpGet_BytesData(_url string, _authToken string, _timeoutMs int) []byte {
-	_client := &http.Client{
-		Timeout: time.Duration(_timeoutMs) * time.Millisecond,
-	}
-	if _timeoutMs <= 0 {
-		_client.Timeout = DefaultTimeout
-	}
+	_client := httpClient(_timeoutMs, false)
 
 	_req, _err := http.NewRequest("GET", strings.ReplaceAll(_url, " ", "%20"), nil)
 	if _err != nil {
 		return nil
 	}
 
-	_req.Header.Set("Connection", "close")
 	if _authToken != "" {
 		_req.Header.Set("Authentication", "Bearer "+_authToken)
+		_req.Header.Set("Authorization", "Bearer "+_authToken)
 	}
 
 	resp, err := _client.Do(_req)
@@ -199,24 +224,13 @@ func HttpGetAsync(_url string, _callback func([]byte)) {
 
 // -------------------------------------------------------------------------------------
 func HttpPost_BytesData(_url string, _authToken string, _ignoreSSL bool, _contentType string, _content string, _timeoutMs int) []byte {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: _ignoreSSL}, // 關鍵：對應 Java 的 NoopHostnameVerifier
-	}
-
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   time.Duration(_timeoutMs) * time.Millisecond,
-	}
-	if _timeoutMs <= 0 {
-		client.Timeout = DefaultTimeout
-	}
+	client := httpClient(_timeoutMs, _ignoreSSL)
 
 	req, err := http.NewRequest("POST", strings.ReplaceAll(_url, " ", "%20"), strings.NewReader(_content))
 	if err != nil {
 		return nil
 	}
 
-	req.Header.Set("Connection", "close")
 	if _contentType != "" {
 		req.Header.Set("Content-Type", _contentType)
 	}
@@ -1072,8 +1086,8 @@ func dialAndSend(_host, _port, _user, _pass, _to string, _msg []byte, _isSSL boo
 	if _isSSL {
 		// 處理 Port 465 類的隱式 SSL
 		_tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
-			ServerName:         _host,
+			MinVersion: tls.VersionTLS12,
+			ServerName: _host,
 		}
 		_conn, _err := tls.Dial("tcp", _addr, _tlsConfig)
 		if _err != nil {
@@ -1421,3 +1435,28 @@ func If(condition bool, trueVal any, falseVal any) any {
 }
 
 // -------------------------------------------------------------------------------------
+
+// HttpRequestContext 支援取消、總期限與 HTTP 狀態錯誤。
+func HttpRequestContext(ctx context.Context, method, address, token, contentType, body string, timeoutMs int) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, method, address, strings.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authentication", "Bearer "+token)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	resp, err := httpClient(timeoutMs, DefaultInsecureTLS).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("HTTP status %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	return string(data), err
+}

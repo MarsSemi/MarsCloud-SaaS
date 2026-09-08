@@ -545,3 +545,11 @@ SDK 依賴以下第三方套件：
 
 - [MarsCloud 官網](https://mars-cloud.com)
 - [GitHub 倉庫](https://github.com/MarsSemi/MarsCloud-SaaS)
+
+## 用戶端 TLS 憑證驗證
+
+HTTP POST 與 MQTT TLS 連線預設驗證伺服器憑證與主機名稱，最低使用 TLS 1.2。升級後，使用自簽憑證的服務應將其簽發 CA 加入作業系統信任庫，或更換為受信任的憑證。
+
+若測試環境暫時需要略過 HTTP POST 與 MQTT 憑證驗證，可在服務 properties 明確設定 `"tls_skip_verify": true`；未設定或設為 `false` 均會驗證。此選項會失去伺服器身分驗證，正式環境應維持 `false`。單獨使用 SDK 的程式僅能在建立連線前設定 `Tools.DefaultInsecureTLS`，不可於執行中修改；此相容性設定影響整個程序。明確傳入 HTTP 工具函式的驗證參數仍優先於預設值。
+
+SMTP 隱式 TLS 連線亦驗證憑證與主機名稱，最低使用 TLS 1.2，不受 `tls_skip_verify` 影響。

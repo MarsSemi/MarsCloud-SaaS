@@ -3,6 +3,7 @@ package AsyncTaskProcessor
 // -------------------------------------------------------------------------------------
 import (
 	"strings"
+	"sync"
 
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/MarsClient"
 	"github.com/MarsSemi/MarsCloud-SaaS/SDK/MarsJSON"
@@ -14,6 +15,8 @@ import (
 // -------------------------------------------------------------------------------------
 // AsyncTaskProcessor 處理非同步任務的處理器
 type AsyncTaskProcessor struct {
+	slots              chan struct{}
+	once               sync.Once
 	_Client            *MarsClient.MarsClient
 	_MainServerHost    string
 	_MainServerWebhook string
@@ -55,8 +58,27 @@ func (_this *AsyncTaskProcessor) OnMQTTMessage(_topic string, _payload string) {
 // -------------------------------------------------------------------------------------
 // ProcessAPI 啟動一個 Goroutine 來執行非同步任務 (對應 Java 的 new Thread().start())
 func (_this *AsyncTaskProcessor) ProcessAPI(_payload string) {
+	if !_this.TryProcessAPI(_payload) {
+		Tools.Log.Print(Tools.LL_Warning, "非同步任務容量已滿，拒絕新任務")
+	}
+}
+
+// TryProcessAPI 限制同時執行八個任務；滿載立即回傳 false，不建立等待 goroutine。
+func (_this *AsyncTaskProcessor) TryProcessAPI(_payload string) bool {
+	_this.once.Do(func() { _this.slots = make(chan struct{}, 8) })
+	select {
+	case _this.slots <- struct{}{}:
+	default:
+		return false
+	}
 
 	go func() {
+		defer func() {
+			<-_this.slots
+			if r := recover(); r != nil {
+				Tools.Log.Print(Tools.LL_Error, "非同步任務異常: %v", r)
+			}
+		}()
 
 		// 1. 執行非同步任務邏輯 (對應 AsyncTask.run)
 		_content := MarsJSON.NewJSONObject(_payload)
@@ -74,9 +96,10 @@ func (_this *AsyncTaskProcessor) ProcessAPI(_payload string) {
 		// 2. 回傳結果給主伺服器 (最後執行的 finally 區塊)
 		if _this._Client != nil {
 			_respURL := _this._MainServerHost + "/services/respone"
-			Tools.HttpPost(_respURL, _this._Client.AuthToken, "", _payload, 15000)
+			Tools.HttpPost(_respURL, _this._Client.GetAuthToken(), "", _payload, 15000)
 		}
 	}()
+	return true
 }
 
 // -------------------------------------------------------------------------------------

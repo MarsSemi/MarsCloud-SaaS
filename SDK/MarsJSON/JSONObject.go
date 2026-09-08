@@ -8,6 +8,8 @@ import (
 	"strconv"
 )
 
+var nonNumericRegexp = regexp.MustCompile(`[^0-9]`)
+
 // -------------------------------------------------------------------------------------
 // JSONObject 實作
 // -------------------------------------------------------------------------------------
@@ -98,8 +100,7 @@ func (_this *JSONObject) OptInt(_key string, _defaultValue int) int {
 			return int(_v)
 		case string:
 			// 模擬 Java 的數字過濾邏輯
-			_reg := regexp.MustCompile(`[^0-9]`)
-			_clean := _reg.ReplaceAllString(_v, "")
+			_clean := nonNumericRegexp.ReplaceAllString(_v, "")
 			_res, _err := strconv.Atoi(_clean)
 			if _err == nil {
 				return _res
@@ -122,8 +123,7 @@ func (_this *JSONObject) OptLong(_key string, _defaultValue int64) int64 {
 		case int64:
 			return _v
 		case string:
-			_reg := regexp.MustCompile(`[^0-9]`)
-			_clean := _reg.ReplaceAllString(_v, "")
+			_clean := nonNumericRegexp.ReplaceAllString(_v, "")
 			_res, _err := strconv.ParseInt(_clean, 10, 64)
 			if _err == nil {
 				return _res

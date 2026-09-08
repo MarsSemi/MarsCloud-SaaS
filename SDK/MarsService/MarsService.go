@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -47,13 +48,20 @@ type serviceCallback struct {
 // -------------------------------------------------------------------------------------
 func (_this *serviceCallback) OnConnected() {
 	Tools.Log.Print(Tools.LL_Info, "MQTT connected")
-	_this.service.impl.OnMQTTConnected()
+	if _this.service != nil && _this.service.impl != nil {
+		_this.service.impl.OnMQTTConnected()
+	}
 }
 
 // -------------------------------------------------------------------------------------
 func (_this *serviceCallback) OnConnectionLost(_err error) {
 	Tools.Log.Print(Tools.LL_Warning, "MQTT connection lost")
-	_this.service.impl.OnMQTTConnectionLost(_err)
+	if _this.service == nil {
+		return
+	}
+	if _this.service.impl != nil {
+		_this.service.impl.OnMQTTConnectionLost(_err)
+	}
 	_this.service.ResetMQTTClient(_this.service.MQTT_Topic)
 }
 
@@ -121,13 +129,18 @@ type MarsService struct {
 	IsDebugData          bool
 	RestartAfterConflict bool
 
-	syncTimer    *time.Ticker
-	defaultTimer *time.Ticker // 用於 AutoGC
+	syncTimer        *time.Ticker
+	defaultTimer     *time.Ticker // 用於 AutoGC
+	timerMu          sync.Mutex   // 保護 ticker 指標的替換與停止
+	syncTimerStop    chan struct{}
+	defaultTimerStop chan struct{}
 
-	stopChan    chan struct{}
-	stopOnce    sync.Once // 整段停止清理只執行一次
-	startOnce   sync.Once
-	lifecycleMu sync.Mutex // 序列化啟動、停止與重啟，重複請求不排隊執行
+	stopChan         chan struct{}
+	stopOnce         sync.Once // 整段停止清理只執行一次
+	startOnce        sync.Once
+	lifecycleMu      sync.Mutex // 序列化啟動、停止與重啟，重複請求不排隊執行
+	mqttResetMu      sync.Mutex
+	mqttResetRunning bool
 
 	autoRestartTime    MarsJSON.JSONArray
 	autoRestartMinutes []string       // restart_time 解析後的 "HH:MM" 清單，無效項目會被丟棄
@@ -178,8 +191,8 @@ func (_this *MarsService) init(_propertyFileName string) {
 	_this.autoRestartMinutes = parseRestartMinutes(&_this.autoRestartTime)
 	_this.restartLocation = resolveRestartLocation(_this.Property.OptString("restart_timezone", ""))
 
-	// 預設仍維持舊行為（略過 TLS 驗證），明確設成 false 才會啟用憑證驗證；同時影響 HttpPost 與 MQTT 連線
-	Tools.DefaultInsecureTLS = _this.Property.OptBoolean("tls_skip_verify", true)
+	// 預設驗證 TLS 憑證；只有明確設定 true 才略過 HttpPost 與 MQTT 的驗證。
+	Tools.DefaultInsecureTLS = _this.Property.OptBoolean("tls_skip_verify", false)
 
 	_this.ResetWebService()
 
@@ -441,15 +454,25 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 	Tools.Log.Print(Tools.LL_Debug, "Service Registered : %s", _version)
 
 	// 定時同步 (Heartbeat)
+	_this.timerMu.Lock()
+	if _this.syncTimerStop != nil {
+		close(_this.syncTimerStop)
+	}
 	if _this.syncTimer != nil {
 		_this.syncTimer.Stop()
 	}
-	_this.syncTimer = time.NewTicker(20 * time.Second)
+	_ticker := time.NewTicker(20 * time.Second)
+	_stop := make(chan struct{})
+	_this.syncTimer = _ticker
+	_this.syncTimerStop = _stop
+	_this.timerMu.Unlock()
 	go func() {
 		for {
 			select {
-			case <-_this.syncTimer.C:
+			case <-_ticker.C:
 				_this.doRegistry(false)
+			case <-_stop:
+				return
 			case <-_this.stopChan:
 				return
 			}
@@ -464,7 +487,7 @@ func (_this *MarsService) RegistryServerInfo(_version string, _type string, _isO
 // InitMQTTClient 初始化 MQTT 連線設定
 func (_this *MarsService) initMQTTClient(_url string) {
 
-	if _url == "" || _this.MarsClient.AuthToken == "" {
+	if _url == "" || _this.MarsClient.GetAuthToken() == "" {
 		Tools.Log.Print(Tools.LL_Warning, "MQTT Init FAIL: URL or Token is empty")
 		return
 	}
@@ -495,8 +518,8 @@ func (_this *MarsService) initMQTTClient(_url string) {
 	_opts.SetCleanSession(true)
 	_opts.SetAutomaticReconnect(true)
 	_opts.SetUserName(_this.MarsClient.Account)
-	_opts.SetClientID(_this.MarsClient.AuthToken)
-	_opts.SetPassword([]byte(_this.MarsClient.AuthToken))
+	_opts.SetClientID(_this.MarsClient.GetAuthToken())
+	_opts.SetPassword([]byte(_this.MarsClient.GetAuthToken()))
 	_opts.SetKeepAliveInterval(30)
 	_opts.SetConnectionTimeout(10)
 
@@ -562,10 +585,24 @@ func (_this *MarsService) ResetMQTTClient(_topic string) {
 	if _this.MQTTClient == nil {
 		return
 	}
+	_this.mqttResetMu.Lock()
+	if _this.mqttResetRunning {
+		_this.mqttResetMu.Unlock()
+		return
+	}
+	_this.mqttResetRunning = true
+	_this.mqttResetMu.Unlock()
 
 	// 在 Goroutine 中處理訂閱邏輯，避免阻塞主執行緒
 	go func() {
-		defer func() { recover() }()
+		defer func() {
+			if _r := recover(); _r != nil {
+				Tools.Log.Print(Tools.LL_Error, "MQTT reset panic: %v", _r)
+			}
+			_this.mqttResetMu.Lock()
+			_this.mqttResetRunning = false
+			_this.mqttResetMu.Unlock()
+		}()
 
 		// 等待重連，最多 5 分鐘並聽 stopChan，避免服務關閉後 goroutine 永久殘留
 		_ticker := time.NewTicker(1 * time.Second)
@@ -648,20 +685,33 @@ func (_this *MarsService) ModifyProperties(_payload string) {
 		return
 	}
 
-	// 先寫到 .tmp 再 rename，避免中途失敗導致 properties 損毀後沒有可用設定
-	_tmp := _this.PropertyFileName + ".tmp"
-	if _err := os.WriteFile(_tmp, []byte(_payload), 0644); _err != nil {
-		Tools.Log.Print(Tools.LL_Error, "Properties write fail: %s", _err.Error())
-		return
-	}
-	if _err := os.Rename(_tmp, _this.PropertyFileName); _err != nil {
-		Tools.Log.Print(Tools.LL_Error, "Properties rename fail: %s", _err.Error())
-		os.Remove(_tmp)
+	if err := writePropertiesFile(_this.PropertyFileName, []byte(_payload)); err != nil {
+		Tools.Log.Print(Tools.LL_Error, "Properties write fail: %s", err.Error())
 		return
 	}
 
 	Tools.Log.Print(Tools.LL_Info, "Properties updated, restarting...")
 	_this.RestartService()
+}
+
+// writePropertiesFile 使用同目錄唯一暫存檔，避免並行寫入共用 .tmp。
+func writePropertiesFile(name string, data []byte) error {
+	f, err := os.CreateTemp(filepath.Dir(name), ".properties-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if _, err = f.Write(data); err != nil {
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), name)
 }
 
 //-------------------------------------------------------------------------------------
@@ -779,13 +829,26 @@ func (_this *MarsService) SendResponse(_w http.ResponseWriter, _no int, _content
 func (_this *MarsService) ResetAutoGC() {
 	_gcInterval := _this.Property.OptInt("auto_gc", 1800) // 預設 30 分鐘
 	if _gcInterval > 0 {
-		_this.defaultTimer = time.NewTicker(time.Duration(_gcInterval) * time.Second)
+		_this.timerMu.Lock()
+		if _this.defaultTimerStop != nil {
+			close(_this.defaultTimerStop)
+		}
+		if _this.defaultTimer != nil {
+			_this.defaultTimer.Stop()
+		}
+		_ticker := time.NewTicker(time.Duration(_gcInterval) * time.Second)
+		_stop := make(chan struct{})
+		_this.defaultTimer = _ticker
+		_this.defaultTimerStop = _stop
+		_this.timerMu.Unlock()
 		go func() {
 			for {
 				select {
-				case <-_this.defaultTimer.C:
+				case <-_ticker.C:
 					runtime.GC()
 					Tools.Log.Print(Tools.LL_Debug, "System GC executed")
+				case <-_stop:
+					return
 				case <-_this.stopChan:
 					return
 				}
@@ -820,12 +883,24 @@ func (_this *MarsService) StopService() bool {
 func (_this *MarsService) stopService() {
 	_this.stopOnce.Do(func() {
 		close(_this.stopChan)
+		_this.timerMu.Lock()
+		if _this.syncTimerStop != nil {
+			close(_this.syncTimerStop)
+			_this.syncTimerStop = nil
+		}
 		if _this.syncTimer != nil {
 			_this.syncTimer.Stop()
+			_this.syncTimer = nil
 		}
 		if _this.defaultTimer != nil {
 			_this.defaultTimer.Stop()
+			_this.defaultTimer = nil
 		}
+		if _this.defaultTimerStop != nil {
+			close(_this.defaultTimerStop)
+			_this.defaultTimerStop = nil
+		}
+		_this.timerMu.Unlock()
 		defer _this.CloseNetService()
 		if _this.impl != nil {
 			_this.impl.BeforeServiceStop()
